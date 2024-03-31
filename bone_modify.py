@@ -189,17 +189,26 @@ class L4D2_OT_RiggingOperator(bpy.types.Operator):
 
         # 开始执行：
         # 获取A骨架和B骨架
-        armature_A = bpy.data.objects[context.scene.Valve_Armature]
-        armature_B = bpy.data.objects[context.scene.Custom_Armature]
+        armature_A = context.scene.Valve_Armature
+        armature_B = context.scene.Custom_Armature
 
         # 确保在物体模式
-        bpy.ops.object.mode_set(mode='OBJECT')
-
+        if bpy.context.active_object is not None:
+            if bpy.context.active_object.mode != 'OBJECT':
+                bpy.ops.object.mode_set(mode='OBJECT')
+        else:
+            # 如果没有活动对象，尝试选择骨架A作为活动对象
+            bpy.context.view_layer.objects.active = armature_A
+            bpy.ops.object.mode_set(mode='OBJECT')
+        
         # 设置骨架A为姿势模式
         bpy.ops.object.select_all(action='DESELECT')
         armature_A.select_set(True)
         bpy.context.view_layer.objects.active = armature_A
         bpy.ops.object.mode_set(mode='POSE')
+
+        # 已添加约束的骨骼名集合
+        added_constraints = set()
 
         for bone in armature_B.data.bones:
             # 简化骨骼名，并使用简化后的骨骼名在字典 bone_names 中查找对应的键
@@ -212,34 +221,45 @@ class L4D2_OT_RiggingOperator(bpy.types.Operator):
                 if bone_name_in_mapping:
                     constraint_target_bone_name = bone.name
                     bone_A_name = bone_name_in_mapping
-                    
+                    # 判断骨骼名是否在 armature_A 的 pose 骨骼中
                     if bone_A_name in armature_A.pose.bones:
+                        # 如果在，则为该骨骼添加约束，并记录到集合中
                         constraint = armature_A.pose.bones[bone_A_name].constraints.new('COPY_LOCATION')
                         constraint.target = armature_B
                         constraint.subtarget = constraint_target_bone_name
                         constraint.head_tail = 0
+                        # 将骨骼名添加到已添加约束的集合中
+                        added_constraints.add(bone_A_name)
 
-        # 遍历字典
+
+        # 通过备选字典尝试添加任何遗漏的骨骼约束
         for bone_A_name, bone_B_names in bone_dict.bone_mapping.items():
+            # 如果骨骼名已经在第一次循环中添加了约束，则跳过
+            if bone_A_name in added_constraints:
+                continue
+
             for bone_B_name in bone_B_names:
-                # 获取B骨架中的骨骼
+                # 尝试从 B 骨架中获取骨骼
                 bone_B = armature_B.pose.bones.get(bone_B_name)
                 if not bone_B:
                     print(f"Bone '{bone_B_name}' not found in armature B")
                     continue
 
-                # 获取A骨架中的骨骼
+                # 尝试从 A 骨架中获取骨骼
                 bone_A = armature_A.pose.bones.get(bone_A_name)
                 if not bone_A:
                     print(f"Bone '{bone_A_name}' not found in armature A")
                     continue
 
-                # 为A骨架中的骨骼添加一个复制位置的骨骼约束
+                # 为 A 骨架中的骨骼添加复制位置的骨骼约束
                 constraint = bone_A.constraints.new('COPY_LOCATION')
-                # 将约束目标设置为B骨架中的骨骼
                 constraint.target = armature_B
                 constraint.subtarget = bone_B.name
                 constraint.head_tail = 0
+
+                # 添加当前骨骼到集合中，避免未来重复添加约束
+                added_constraints.add(bone_A_name)
+
         # 骨骼约束添加完成
         return {'FINISHED'}
 

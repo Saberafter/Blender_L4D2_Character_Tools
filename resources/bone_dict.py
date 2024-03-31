@@ -586,7 +586,7 @@ bone_names = {
     #'left_eye': ["eyeleft", "lefteye", "eyel", "leye"],
     #'right_eye': ["eyeright", "righteye", "eyer", "reye"],    
 
-    "left_shoulder": ["leftshoulder", "shoulderl", "rshoulder"],
+    "left_shoulder": ["leftshoulder", "shoulderl", "lshoulder"],
     "left_arm": ["leftarm", "arml", "rarm", "upperarml", "leftupperarm", "uparml", "luparm"],
     "left_elbow": ["leftelbow", "elbowl", "relbow", "lowerarml", "leftlowerarm", "lowarml", "llowarm", "forearml",],
     "left_wrist": ["leftwrist", "wristl", "rwrist", "handl", "lefthand", "lhand"],

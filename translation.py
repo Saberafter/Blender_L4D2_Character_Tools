@@ -28,7 +28,7 @@ translation_dict = {
 
         ("*", "Bone Mapping Management"): "骨骼映射管理",
         ("*", "Valve BoneList"): "官方骨骼列表",
-        ("*", "Custom BoneList"): "官方骨骼列表",
+        ("*", "Custom BoneList"): "自定义骨列表",
         ("*", "Bone Name"): "骨骼名",
         ("Operator", "Add Bone"): "添加骨骼",
         ("*", "Automatically remove symbols and convert to lowercase"): "自动去掉符号转化为小写",

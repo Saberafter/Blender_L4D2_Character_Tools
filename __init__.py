@@ -28,6 +28,7 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        scene = context.scene
         # 使用 split 布局类型调整左右列的宽度比例
         split = layout.split(factor=0.25)
         col_left = split.column()
@@ -36,8 +37,10 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
         col_left.label(text="Valve Rig:")
         col_left.label(text="Custom Rig:")
         # 下拉框
-        col_right.prop_search(context.scene, "Valve_Armature", bpy.data, "armatures", text="")
-        col_right.prop_search(context.scene, "Custom_Armature", bpy.data, "armatures", text="", icon="MOD_ARMATURE")
+        col_right.prop(scene, "Valve_Armature", text="", icon="ARMATURE_DATA")
+
+        col_right.prop(scene, "Custom_Armature", text="", icon="MOD_ARMATURE")
+
 
         bone_modify.L4D2_PT_BoneModifyPanel.draw(self, context)
 
@@ -293,7 +296,16 @@ def register():
     flex.register()
     from .translation import translation_dict
     translations.register(bl_info['name'], translation_dict)
-
+    bpy.types.Scene.Valve_Armature = bpy.props.PointerProperty(
+        name="Valve Armature",
+        type=bpy.types.Object,
+        poll=lambda self, obj: obj.type == 'ARMATURE'
+    )
+    bpy.types.Scene.Custom_Armature = bpy.props.PointerProperty(
+        name="Custom Armature",
+        type=bpy.types.Object,
+        poll=lambda self, obj: obj.type == 'ARMATURE'
+    )
 def unregister():
     translations.unregister(bl_info['name'])
     for cls in classes:
