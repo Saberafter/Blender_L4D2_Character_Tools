@@ -575,7 +575,7 @@ bone_mapping = {
         'right_toe',
         ],
 }
-
+# Bone names from https://github.com/triazo/immersive_scaler/
 bone_names = {
     'hips': ["pelvis", "hips"],
     'spine': ["torso", "spine"],

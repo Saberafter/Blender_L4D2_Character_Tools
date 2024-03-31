@@ -17,11 +17,12 @@
 -
 
 ## 鸣谢
-- 
-- 抹茶芝士：对骨脚本
-- [blender_BoneAnimCopy](https://github.com/kumopult/blender_BoneAnimCopy)：
-
+- 残剑斩龙：3DMAX的VRD插件
+- 抹茶芝士：骨骼约束脚本
+- [BAC](https://github.com/kumopult/blender_BoneAnimCopy)：部分代码思路
+- [Cats](https://github.com/absolute-quantum/cats-blender-plugin)：部分代码思路
+- [SourceOps](https://github.com/bonjorno7/SourceOps)：部分代码思路
 
 这个插件是为了帮助"求生之路2"的Mod制作者们更高效地进行制作工作。希望这个插件可以使他们的工作变得更轻松。
 
-如果你发现插件有任何问题或者建议，欢迎你在Github上提交issue。
+如果你对插件有任何问题或者建议，欢迎你在Github上提交issue。
