@@ -5,7 +5,7 @@ translation_dict = {
     "zh_CN": {
         # Preferences
         ("*", "View3D > Tool Shelf > 💝"): "3D视图 > 侧栏 > 💝",
-        ("*", "A plugin designed to enhance the efficiency of creating Left 4 Dead 2 Mods."): "这是一个旨在提升求生之路2 Mod制作效率的插件。",
+        ("*", "A plugin designed to enhance the efficiency of creating Left 4 Dead 2 Mods."): "这是一个旨在提升求生之路2人物Mod制作效率的插件。",
         
         # 🛠️ General Tools
         ("*", "Valve Rig:"): "官方骨架:",
@@ -24,7 +24,7 @@ translation_dict = {
         ("*", "Bulk Remove Constraints from Selected Bones"): "批量移除所选骨骼的约束",
         ("Operator", "Remove All Constraint"): "移除骨骼约束",
         ("Operator", "Cancel Y RotationConstraint"): "取消Y轴旋转约束",
-        ("Operator", "Remove TransformConstraint"): "删除变换约束",
+        ("Operator", "Remove TransformConstraint"): "移除变换约束",
 
         ("*", "Bone Mapping Management"): "骨骼映射管理",
         ("*", "Valve BoneList"): "官方骨骼列表",

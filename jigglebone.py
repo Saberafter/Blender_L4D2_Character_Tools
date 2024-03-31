@@ -254,7 +254,7 @@ class JigglebonePropertyGroup(bpy.types.PropertyGroup):
         # 然后，为每个参数创建对应的开关
         for param in flexible_params + base_params:
             name = param[0]
-            exec(f'enable_{name}: bpy.props.BoolProperty(name="Enable {name}", default=False)')
+            exec(f'enable_{name}: BoolProperty(name="Enable {name}", default=False)')
 
 
         @staticmethod
@@ -356,7 +356,7 @@ class JigglebonePanel(bpy.types.Panel):
                             row.prop(bone, f'enable_{name}', text=name, translate=False)
                             
                             # 如果不是BoolProperty，则在同一行绘制值
-                            if param[1] is not bpy.props.BoolProperty and getattr(bone, f'enable_{name}'):
+                            if param[1] is not BoolProperty and getattr(bone, f'enable_{name}'):
                                 row.prop(bone, name, text="")
                 # 绘制 is_flexible 相关的UI元素
                 draw_param_box(flexible_params, 'is_flexible')
@@ -772,7 +772,7 @@ class Jigglebone_OT_ExportJigglebone(bpy.types.Operator):
             name = param[0]
             enable_name = f'enable_{name}'
             if getattr(bone, enable_name):
-                if param[1] == bpy.props.BoolProperty:
+                if param[1] == BoolProperty:
                     output += f"        {name}\n"
                 else:
                     value = getattr(bone, name)

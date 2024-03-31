@@ -2,7 +2,7 @@ import os
 import bpy
 import math
 from collections import defaultdict
-from bpy.props import FloatProperty, FloatVectorProperty, BoolProperty, EnumProperty, StringProperty, CollectionProperty, IntProperty, PointerProperty
+from bpy.props import FloatProperty, BoolProperty, EnumProperty, StringProperty, CollectionProperty, IntProperty, PointerProperty
 
 
 last_export_path = ""
@@ -113,19 +113,19 @@ def get_transforms(bone, transform_type):
 
 # 骨骼属性组
 class BonePropertyGroup(bpy.types.PropertyGroup):
-    name: bpy.props.StringProperty()
-    angle: bpy.props.FloatProperty(name="Angle", default=90, precision=0)
+    name: StringProperty()
+    angle: FloatProperty(name="Angle", default=90, precision=0)
 
 class BoneListSet(bpy.types.PropertyGroup):
-    cxbone_list: bpy.props.CollectionProperty(type=BonePropertyGroup)
-    qdbone_list: bpy.props.CollectionProperty(type=BonePropertyGroup)
+    cxbone_list: CollectionProperty(type=BonePropertyGroup)
+    qdbone_list: CollectionProperty(type=BonePropertyGroup)
 
 class ProjectItem(bpy.types.PropertyGroup):
-    name: bpy.props.StringProperty(name="VRD Project Name")
-    bone_set: bpy.props.PointerProperty(type=BoneListSet)
-    cxbone_index: bpy.props.IntProperty()  
-    qdbone_index: bpy.props.IntProperty()
-    animation_name: bpy.props.EnumProperty(
+    name: StringProperty(name="VRD Project Name")
+    bone_set: PointerProperty(type=BoneListSet)
+    cxbone_index: IntProperty()  
+    qdbone_index: IntProperty()
+    animation_name: EnumProperty(
         items=get_animations_enum,
         name="Action Name",
         description="Select the action bound to the project"
@@ -286,7 +286,7 @@ class VRD_OT_ExportBones(bpy.types.Operator):
         ]
     )
     
-    bpy.types.Scene.vrd_export_path = bpy.props.StringProperty(
+    bpy.types.Scene.vrd_export_path = StringProperty(
             name="Export Path",
             subtype='FILE_PATH', 
             default="//"
@@ -420,7 +420,7 @@ class VRD_OT_EditBoneListOps(bpy.types.Operator):
     bl_label = "Operations for editing the bone list"
     bl_description = "Edit the bone list including adding, removing, moving and clearing bones"
 
-    operation: bpy.props.EnumProperty(
+    operation: EnumProperty(
         items=[
             ('ADD_CX', "Add Procedural Bone", ""),
             ('ADD_QD', "Add Driver Bone", ""),
@@ -520,7 +520,7 @@ class VRD_OT_OpenFile(bpy.types.Operator):
     bl_label = "Open File or Folder"
     bl_description = "Open the file or folder specified by 'Export Path'"
 
-    open_type: bpy.props.EnumProperty(
+    open_type: EnumProperty(
         items=[
             ('FILE', "文本文件", "打开在 'vrd_export_path' 指定的文件"),
             ('FOLDER', "文件夹", "打开在 'vrd_export_path' 指定的文件所在的文件夹"),
@@ -636,17 +636,17 @@ classes = [
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Scene.cxbone_list = bpy.props.CollectionProperty(type=BonePropertyGroup)
-    bpy.types.Scene.qdbone_list = bpy.props.CollectionProperty(type=BonePropertyGroup)
-    bpy.types.Scene.cxbone_list_index = bpy.props.IntProperty()
-    bpy.types.Scene.qdbone_list_index = bpy.props.IntProperty()
-    bpy.types.Scene.bone_list_sets = bpy.props.CollectionProperty(type=BoneListSet)
-    bpy.types.Scene.bone_list_sets_index = bpy.props.IntProperty()
-    bpy.types.Scene.export_default = bpy.props.BoolProperty(name="Default",description="The exported text will be output in the VRD text format that can be received by StudioMDL", default=False)
-    bpy.types.Scene.export_nekomdl = bpy.props.BoolProperty(name="NekoMDL",description="The exported text will be output in the VRD text format that can be received by NekoMDL", default=False)
-    bpy.types.Scene.project_items = bpy.props.CollectionProperty(type=ProjectItem)
-    bpy.types.Scene.active_project_index = bpy.props.IntProperty()
-    bpy.types.Scene.export_all = bpy.props.BoolProperty(name="Export All VRD",description="Export all VRD texts obtained from the bound animations",default=True)
+    bpy.types.Scene.cxbone_list = CollectionProperty(type=BonePropertyGroup)
+    bpy.types.Scene.qdbone_list = CollectionProperty(type=BonePropertyGroup)
+    bpy.types.Scene.cxbone_list_index = IntProperty()
+    bpy.types.Scene.qdbone_list_index = IntProperty()
+    bpy.types.Scene.bone_list_sets = CollectionProperty(type=BoneListSet)
+    bpy.types.Scene.bone_list_sets_index = IntProperty()
+    bpy.types.Scene.export_default = BoolProperty(name="Default",description="The exported text will be output in the VRD text format that can be received by StudioMDL", default=False)
+    bpy.types.Scene.export_nekomdl = BoolProperty(name="NekoMDL",description="The exported text will be output in the VRD text format that can be received by NekoMDL", default=False)
+    bpy.types.Scene.project_items = CollectionProperty(type=ProjectItem)
+    bpy.types.Scene.active_project_index = IntProperty()
+    bpy.types.Scene.export_all = BoolProperty(name="Export All VRD",description="Export all VRD texts obtained from the bound animations",default=True)
 
 
 # 注销插件

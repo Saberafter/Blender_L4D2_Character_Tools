@@ -5,7 +5,7 @@ bl_info = {
     "version": (1, 0 , 0),
     "blender": (2, 80, 0),
     "location": "View3D > Tool Shelf > 💝",
-    "description": "A plugin designed to enhance the efficiency of creating Left 4 Dead 2 Mods.",
+    "description": "A plugin designed to enhance the efficiency of creating Left 4 Dead 2 character mods.",
     "doc_url" : "",
     "tracker_url" : "https://space.bilibili.com/42971",
     "category": "3D View",
@@ -43,7 +43,7 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
 
         row = layout.row()
         row.operator("l4d2.remove_constraint", text="Remove All Constraint", icon="X").action = 'REMOVE_ALL'
-        row.operator("l4d2.remove_constraint", text="Cancel Y RotationConstraint", icon="X").action = 'REMOVE_ROT_Y'
+        # row.operator("l4d2.remove_constraint", text="Cancel Y RotationConstraint", icon="X").action = 'REMOVE_ROT_Y'
         row.operator("l4d2.remove_constraint", text="Remove TransformConstraint", icon="X").action = 'REMOVE_TRANS'
         row = layout.row()
         row.operator("l4d2.rename_bones_operator", icon="GREASEPENCIL")
@@ -292,10 +292,10 @@ def register():
     jigglebone.register()
     flex.register()
     from .translation import translation_dict
-    bpy.app.translations.register(bl_info['name'], translation_dict)
+    translations.register(bl_info['name'], translation_dict)
 
 def unregister():
-    bpy.app.translations.unregister(bl_info['name'])
+    translations.unregister(bl_info['name'])
     for cls in classes:
         bpy.utils.unregister_class(cls)
     del bpy.types.Scene.vertex_group_name_1

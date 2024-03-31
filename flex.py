@@ -4,7 +4,7 @@ import os
 import re
 import json
 from bpy.types import PropertyGroup
-from bpy.props import FloatProperty, PointerProperty, IntProperty, CollectionProperty, StringProperty
+from bpy.props import FloatProperty, BoolProperty, IntProperty, CollectionProperty, StringProperty, EnumProperty
 from .resources import flex_dict
 from .resources import flexmix_presets
 
@@ -91,7 +91,7 @@ def create_or_update_prop(group_index, key, value):
     def update_prop(self, context):
         update_flex_key_value(self, context, group_index - 1, format_key_name(key))
     
-    setattr(bpy.types.Scene, prop_name, bpy.props.FloatProperty(name=key, default=value, min=0.0, max=1.0, update=update_prop))
+    setattr(bpy.types.Scene, prop_name, FloatProperty(name=key, default=value, min=0.0, max=1.0, update=update_prop))
 
 
 def update_enum(self, context):
@@ -113,7 +113,7 @@ def update_enum(self, context):
 # 更新下拉菜单枚举项的函数
 def update_flex_keys_enum_items():
     items = init_enum_items(None, bpy.context)
-    bpy.types.Scene.flex_keys_enum = bpy.props.EnumProperty(
+    bpy.types.Scene.flex_keys_enum = EnumProperty(
         name="Flex Keys",
         description="Select a flex key",
         items=items,
@@ -125,7 +125,7 @@ def init_enum_items(self, context):
     items = [(k, str(i)+'. '+k, "") for i, k in enumerate(flexmix_dict.keys(), start=0)] if flexmix_dict.keys() else []
     return items
 
-bpy.types.Scene.flex_keys_enum = bpy.props.EnumProperty(items=init_enum_items,
+bpy.types.Scene.flex_keys_enum = EnumProperty(items=init_enum_items,
                                                         update=update_enum)
 
 # 捕捉非零形态键值的操作
@@ -167,8 +167,8 @@ class L4D2_OT_AddToDict(bpy.types.Operator):
 class L4D2_OT_DeleteFlexKeyPair(bpy.types.Operator):
     bl_idname = "l4d2.delete_flex_key_pair"
     bl_label = "Delete Key-Value Pair"
-    group_index: bpy.props.IntProperty()
-    key_name: bpy.props.StringProperty()
+    group_index: IntProperty()
+    key_name: StringProperty()
 
     def execute(self, context):
         print("正在删除键值对，组索引:", self.group_index, "键名称:", self.key_name)
@@ -211,8 +211,8 @@ class L4D2_OT_AddNewFlexKey(bpy.types.Operator):
     """Add a new key to the dictionary"""
     bl_idname = "l4d2.add_new_flex_key"
     bl_label = "Add New Key"
-    new_key_name: bpy.props.StringProperty(name="Name")
-    new_key_note: bpy.props.StringProperty(name="Note")  # 新增：新建键的备注
+    new_key_name: StringProperty(name="Name")
+    new_key_note: StringProperty(name="Note")  # 新增：新建键的备注
 
 
     def invoke(self, context, event):
@@ -235,7 +235,7 @@ class L4D2_OT_AddNewFlexKey(bpy.types.Operator):
         save_flexmix_dict(flexmix_dict, key_notes)  # 修改：保存时带上 key_notes 字典
 
         # 更新下拉菜单枚举项
-        bpy.types.Scene.flex_keys_enum = bpy.props.EnumProperty(items=init_enum_items(context, None),
+        bpy.types.Scene.flex_keys_enum = EnumProperty(items=init_enum_items(context, None),
                                                                 update=update_enum)
 
         self.report({'INFO'}, f"已添加新键 '{key_name}'.")
@@ -250,8 +250,8 @@ class L4D2_OT_RenameFlexKey(bpy.types.Operator):
     """Rename the key currently selected in the drop-down menu"""
     bl_idname = "l4d2.rename_flex_key"
     bl_label = "Rename Key"
-    new_key_name: bpy.props.StringProperty(name="Name")
-    new_key_note: bpy.props.StringProperty(name="Note")  # 新增：重命名键后的备注
+    new_key_name: StringProperty(name="Name")
+    new_key_note: StringProperty(name="Note")  # 新增：重命名键后的备注
 
     def invoke(self, context, event):
         selected_key = context.scene.flex_keys_enum
@@ -298,7 +298,7 @@ class L4D2_OT_RenameFlexKey(bpy.types.Operator):
         save_flexmix_dict(flexmix_dict, key_notes)  # 保存时带上 key_notes 字典
 
         # 更新下拉菜单枚举项
-        bpy.types.Scene.flex_keys_enum = bpy.props.EnumProperty(items=init_enum_items(context, None),
+        bpy.types.Scene.flex_keys_enum = EnumProperty(items=init_enum_items(context, None),
                                                                 update=update_enum)
         context.scene.flex_keys_enum = new_key_name  # 选择已重命名的键
         return {'FINISHED'}
@@ -418,7 +418,7 @@ class FLEXMIX_UL_List(bpy.types.UIList):
 class FlexmixItem(PropertyGroup):
     # 字典键的名字。对于每一个flexmix_dict中的键，都会有一个FlexmixItem
     name: StringProperty()
-    selected: bpy.props.BoolProperty(default=False)
+    selected: BoolProperty(default=False)
     
 class L4D2_OT_FlexMixMoveUp(bpy.types.Operator):
     bl_idname = "l4d2.flexmix_move_up"
@@ -512,7 +512,7 @@ def update_presets(self, context):
 
 
 # 在窗口管理器中定义预设库
-bpy.types.WindowManager.presets = bpy.props.EnumProperty(
+bpy.types.WindowManager.presets = EnumProperty(
     name="presets",
     description="Preset List",
     items=get_presets_items,
@@ -524,7 +524,7 @@ class L4D2_OT_SaveFlexPreset(bpy.types.Operator):
     bl_idname = "l4d2.save_flex_preset"
     bl_label = "Save Preset"
 
-    preset_name: bpy.props.StringProperty(name="Preset Name")  # 新增的预设名输入框
+    preset_name: StringProperty(name="Preset Name")  # 新增的预设名输入框
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
@@ -549,7 +549,7 @@ class L4D2_OT_FlexSelectAction(bpy.types.Operator):
     bl_description = 'Select All/Deselect All/Invert Selection'
     bl_options = {'UNDO'}
 
-    action: bpy.props.StringProperty()
+    action: StringProperty()
 
     def execute(self, context):
         wm = context.window_manager

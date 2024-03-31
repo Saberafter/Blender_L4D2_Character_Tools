@@ -2,7 +2,6 @@ import bpy
 import json
 import os
 from .resources import bone_dict
-from bpy.app import translations
 
 preset_dir = os.path.join(bpy.utils.resource_path('USER'), 'scripts', 'presets', 'L4D2 Character Tools')
 BONE_NAMES_FILE_PATH = os.path.join(preset_dir,"bone_dict.json")
