@@ -13,15 +13,15 @@
 3. 在插件(Add-ons)选项卡中安装(Install)这个压缩包并启用(√)
 
 ## 使用说明
-- 安装启用插件后在N键面板中可以找到以💝作为侧栏名字的插件，点击进入插件面板
-
+- 安装启用插件后在N键面板中可以找到以💝作为侧栏名字的插件，点击💝进入插件面板
+![插件使用说明](https://private-user-images.githubusercontent.com/46404382/318287921-a54cbdcd-2190-4908-b2cd-c88692273c86.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTE5MDUzODcsIm5iZiI6MTcxMTkwNTA4NywicGF0aCI6Ii80NjQwNDM4Mi8zMTgyODc5MjEtYTU0Y2JkY2QtMjE5MC00OTA4LWIyY2QtYzg4NjkyMjczYzg2LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDAzMzElMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwMzMxVDE3MTEyN1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWRjN2EzZTM0OTJkYmY5NDEyNDE5Yzg5MzU2ZmJkOWY2NDExZjFmMTJlNDcyOTAyMzg2OGNlODA1NzBkNTM4MTMmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.DmX9dGS_2xwyh6UpKpIx3aK1rU24wQvPyflxj9RlgV8)
 
 
 ## 鸣谢
-- 抹茶芝士✰：灵感来源
+- 抹茶芝士✰：对骨脚本 
 - 残剑斩龙：3DMAX的VRD插件思路
 - [SourceOps](https://github.com/bonjorno7/SourceOps)：获取骨骼位置/旋转坐标
-- [BoneAnimCopy](https://github.com/kumopult/blender_BoneAnimCopy)：骨骼映射思路
+- [BoneAnimCopy](https://github.com/kumopult/blender_BoneAnimCopy)：骨骼映射
 - 发布人物制作教程的作者们
 
 这个插件是为了帮助"求生之路2"的Mod制作者们更高效地进行制作工作。希望这个插件可以使他们的工作变得更轻松。
