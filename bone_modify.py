@@ -304,6 +304,8 @@ class L4D2_OT_GraftingOperator(bpy.types.Operator):
                         if bone.name in child_names:
                             parent_bone = edit_bones.get(parent_name)
                             if parent_bone:
+                                if bone.use_connect:
+                                    bone.use_connect = False
                                 bone.parent = parent_bone
                 else:
                     # 如果骨骼名称不在bone_dict.bone_mapping的值当中，简化骨骼名称
@@ -314,6 +316,8 @@ class L4D2_OT_GraftingOperator(bpy.types.Operator):
                                 if parent_name in map_child_names:
                                     parent_bone = edit_bones.get(map_par_name)
                                     if parent_bone:
+                                        if bone.use_connect:
+                                            bone.use_connect = False
                                         bone.parent = parent_bone
 
         # 没有选中的骨骼时，先按照原有的bone_mapping设置父子关系
@@ -342,7 +346,7 @@ class L4D2_OT_GraftingOperator(bpy.types.Operator):
                                     bone.parent = parent_bone
 
 
-        bpy.ops.object.mode_set(mode='OBJECT')  # 返回对象模式
+        bpy.ops.object.mode_set(mode='POSE')  # 返回姿态模式
         return {'FINISHED'}
 		
 class L4D2_OT_RenameBonesOperator(bpy.types.Operator):
