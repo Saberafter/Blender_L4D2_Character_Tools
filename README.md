@@ -80,6 +80,7 @@
   1. 使用捕捉功能记录形态键，添加进混合表情集所需的形态键列表中
   2. 使用批量创建功能，选择我们的面部规则需要的表情以及顺序创建形态键
   3. 整理形态键，只保留使用插件生成的表情
+  
 https://github.com/Saberafter/Blender_L4D2_Character_Tools/assets/46404382/3fb5ccee-9b69-4e7b-bab8-933de9a60810
 
 
