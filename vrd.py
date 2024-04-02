@@ -305,7 +305,10 @@ class VRD_OT_ExportBones(bpy.types.Operator):
 
                 # 生成当前项目的内容
                 content = self.generate_content(context, project_item)
-                full_content += f"\n// {project_item.name}\n{content}"
+                if full_content:
+                    full_content += f"\n// {project_item.name}\n{content}"
+                else:
+                    full_content += f"// {project_item.name}\n{content}"
 
             content_to_export = full_content
         else:
@@ -325,12 +328,16 @@ class VRD_OT_ExportBones(bpy.types.Operator):
             if not context.scene.vrd_export_path:
                 self.report({'ERROR'}, "请先设置导出的文件路径！")
                 return {'CANCELLED'}
-            try:
-                with open(bpy.path.abspath(context.scene.vrd_export_path), 'w') as f:
-                    f.write(content_to_export)
-            except Exception as e:
-                self.report({'ERROR'}, "文件写入失败: {}".format(e))
-                return {'CANCELLED'}
+        filepath = bpy.path.abspath(context.scene.vrd_export_path)
+        if filepath.endswith(('\\', '/')):
+            self.report({'ERROR'}, "请在导出路径提供一个具体的文件名")
+            return {'CANCELLED'}
+        try:
+            with open(filepath, 'w') as f:
+                f.write(content_to_export)
+        except Exception as e:
+            self.report({'ERROR'}, "文件写入失败: {}".format(e))
+            return {'CANCELLED'}
             self.report({'INFO'}, "文本已保存到文件：{}".format(context.scene.vrd_export_path))
         else:  
             context.window_manager.clipboard = content_to_export

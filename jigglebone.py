@@ -57,23 +57,21 @@ def get_selectable_params(self, context):
     return selectable_params
 
 # 写入json预设文件
-def write_json(preset_dict):  # 添加参数
+def write_json():
     if not os.path.exists(preset_dir):
         os.makedirs(preset_dir)
     with open(json_path, "w", encoding='utf-8') as f:
-        json.dump(preset_dict, f, ensure_ascii=False, indent=4)  # 使用参数进行文件写入
-
+        json.dump(jigglebone_preset_dict, f, ensure_ascii=False, indent=4)
+    
 def read_json():
     global jigglebone_preset_dict
-    # 确保预设目录存在，如果不存在则创建它
     if not os.path.isdir(preset_dir):
         os.makedirs(preset_dir)
 
     if not os.path.exists(json_path):
         print(f"找不到文件: {json_path}，将使用 jiggleboneparams_presets.py 中的字典并创建一个新的 json 文件。")
-        # 从jiggleboneparams_presets模块导入的字典中读取预设
         jigglebone_preset_dict = jiggleboneparams_presets.presets
-        write_json(jigglebone_preset_dict)  # 此处的jigglebone_preset_dict是全局变量
+        write_json()  
     else:
         with open(json_path, 'r', encoding='utf-8') as f:
             jigglebone_preset_dict = json.load(f)
@@ -82,11 +80,10 @@ def read_json():
 # 调用函数读取或创建json文件
 read_json()
 
-# 添加预设
+# 添加/覆盖预设
 def add_preset(name, preset):
-    if name not in jigglebone_preset_dict:
-        jigglebone_preset_dict[name] = preset
-        write_json()
+    jigglebone_preset_dict[name] = preset  
+    write_json()
 
 # 删除预设
 def delete_preset(name):
@@ -181,15 +178,25 @@ class Jigglebone_OT_AddPreset(bpy.types.Operator):
 
 class Jigglebone_OT_DeletePreset(bpy.types.Operator):
     bl_idname = "jigglebone.delete_preset"
-    bl_label = "删除预设"
+    bl_label = "Delete Preset"
     bl_options = {'REGISTER', 'UNDO'}
 
-    def execute(self,context):
-        scene=context.scene
+    def execute(self, context):
+        scene = context.scene
         selected_preset_name = scene.jigglebone_presets.temp_preset_name
-        delete_preset(selected_preset_name)
-        return{"FINISHED"}
+        
+        delete_preset(selected_preset_name)  # 删除选中预设
+        
+        preset_names = list(jigglebone_preset_dict.keys())  # 获取所有预设的名称
+      
+        # 如果存在预设，就将第一个预设设为当前选中预设
+        if preset_names:
+            scene.jigglebone_presets.temp_preset_name = preset_names[0]
+        
+        return {"FINISHED"}
 
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
     
 class Jigglebone_OT_ApplyPreset(bpy.types.Operator):
     bl_idname = "jigglebone.apply_preset"
@@ -277,7 +284,7 @@ class JigglebonePanel(bpy.types.Panel):
     bl_idname = "L4D2_PT_jigglebone"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    ...
+
     def draw(self, context):
         scene = context.scene
         jigglebone_list = scene.jigglebone_list
@@ -807,13 +814,10 @@ class Jigglebone_OT_ExportJigglebone(bpy.types.Operator):
     def export_to_file(self, text, filepath):
         # 将 '//' 转换为实际的文件路径
         filepath = bpy.path.abspath(filepath)
-
-        # 确保路径不存在末尾的斜杠，因为我们需要指定文件名
+        # 检查路径是否只有目录，没有文件名
         if filepath.endswith(('\\', '/')):
-            # 为了示例，我们在这里给出一个默认的文件名
-            filepath = os.path.join(filepath, "pdgg.qci")
-
-        # 尝试写入文件
+            self.report({'ERROR'}, "请在导出路径提供一个具体的文件名")
+            return {'CANCELLED'}
         try:
             with open(filepath, 'w', encoding='utf-8') as file:
                 file.write(text)
@@ -941,7 +945,7 @@ def register():
     bpy.types.Scene.jigglebone_list = CollectionProperty(type=JigglebonePropertyGroup)
     bpy.types.Scene.jigglebone_list_index = IntProperty(default=0)
     bpy.types.Scene.jigglebone_presets = PointerProperty(type=PresetPropertyGroup)
-    bpy.app.handlers.depsgraph_update_post.append(update_bone_list_selection)
+    # bpy.app.handlers.depsgraph_update_post.append(update_bone_list_selection)
     bpy.types.Scene.Jigglebone_is_detailed = BoolProperty(name="Jigglebone Parameters Panel", default=False)
 
 def unregister():
@@ -952,4 +956,4 @@ def unregister():
     del bpy.types.Scene.jigglebone_list_index
     del bpy.types.Scene.jigglebone_export_path
     del bpy.types.Scene.jigglebone_presets
-    bpy.app.handlers.depsgraph_update_post.remove(update_bone_list_selection)
+    # bpy.app.handlers.depsgraph_update_post.remove(update_bone_list_selection)

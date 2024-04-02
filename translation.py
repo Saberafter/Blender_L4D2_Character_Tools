@@ -86,7 +86,7 @@ translation_dict = {
         ("*", "Export all VRD texts obtained from the bound animations"): "导出所有根据绑定动画得到的 VRD 文本",
 
         ("*", "Copy to Clipboard"): "复制到剪贴板",
-        ("*", "Export to File"): "导出到文件",
+        ("*", "Export to File"): "导出至文件",
 
         ("Operator", "Open File or Folder"): "打开文件或文件夹",
         ("*", "Open the file or folder specified by 'Export Path'"): "打开在 '导出路径' 指定的文件或者文件夹",
@@ -102,6 +102,7 @@ translation_dict = {
 
         ("Operator", "Apply Preset"): "应用预设",
         ("Operator", "Add/Overwrite Preset"): "添加/覆盖预设",
+        ("Operator", "Delete Preset"): "删除预设",
         ("*", "The name of the new preset. If this name is the same as an existing preset, the existing preset will be overwritten"): "新预设的名字，如果这个名字和现有预设的名字相同，将会覆盖现有预设",
         ("*", "Preset Name"): "预设名",
 
