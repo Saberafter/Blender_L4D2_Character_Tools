@@ -8,7 +8,7 @@
 - 通过操控原始形态键的混合数值生成适配你面部规则的表情集
 
 ## 安装方式
-1. 在[releases](https://github.com/Saberafter/Blender_L4D2_Character_Tools/releases)页面下载最新的zip压缩包
+1. 在[发行版](https://github.com/Saberafter/Blender_L4D2_Character_Tools/releases)页面下载最新的zip压缩包
 2. 打开Blender，找到编辑(Edit)-偏好设置(Preferences)-插件(Add-ons)
 3. 在插件(Add-ons)选项卡中安装(Install)这个压缩包并启用(√)
 
@@ -69,8 +69,8 @@
 
 4. 右侧最后一个按钮可以用来导入外部文件复制进剪贴板的参数，换句话说就是能把标准格式的抖动参数格式化并输入进当前面板展示参数。
 <p align="center">
-  <img src="https://private-user-images.githubusercontent.com/46404382/318945324-e869c504-2df9-4813-a2de-38a73a5d2eb2.gif?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTIwOTA5NzQsIm5iZiI6MTcxMjA5MDY3NCwicGF0aCI6Ii80NjQwNDM4Mi8zMTg5NDUzMjQtZTg2OWM1MDQtMmRmOS00ODEzLWEyZGUtMzhhNzNhNWQyZWIyLmdpZj9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDA0MDIlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwNDAyVDIwNDQzNFomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWYyZGQ3Njg5ZjU1ZmU3NTY3NmRlN2M3OGVmOTk5MmFiM2Q2NTAxMmZiMTE4N2M1N2NlOTAxM2NiY2RiYjBlZTAmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.noDTWHiUfEs2TxGi4EwYRTQXXUcoKXwE1cMxUfV7Fhw" alt="图片1描述" />
-  <img src="https://private-user-images.githubusercontent.com/46404382/318948047-96bc9a44-fbf1-4bc5-aaf1-883481e444c3.gif?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTIwOTA5NzQsIm5iZiI6MTcxMjA5MDY3NCwicGF0aCI6Ii80NjQwNDM4Mi8zMTg5NDgwNDctOTZiYzlhNDQtZmJmMS00YmM1LWFhZjEtODgzNDgxZTQ0NGMzLmdpZj9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDA0MDIlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwNDAyVDIwNDQzNFomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTAyYWUyMDc3Mzc3MTMyMDc2NzcyNTMzYjdkMDllY2NjNzZmZGE3MzU4ZGRlNGYyYTQxYTlhMGE2Yzc5OTIyOWEmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.aORZ4P29LIm6lex0W1KbTSoX3z_q2PzoxyK6FQXvOAo" alt="图片2描述" />
+  <img src="https://private-user-images.githubusercontent.com/46404382/318945324-e869c504-2df9-4813-a2de-38a73a5d2eb2.gif?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTIwOTA5NzQsIm5iZiI6MTcxMjA5MDY3NCwicGF0aCI6Ii80NjQwNDM4Mi8zMTg5NDUzMjQtZTg2OWM1MDQtMmRmOS00ODEzLWEyZGUtMzhhNzNhNWQyZWIyLmdpZj9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDA0MDIlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwNDAyVDIwNDQzNFomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWYyZGQ3Njg5ZjU1ZmU3NTY3NmRlN2M3OGVmOTk5MmFiM2Q2NTAxMmZiMTE4N2M1N2NlOTAxM2NiY2RiYjBlZTAmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.noDTWHiUfEs2TxGi4EwYRTQXXUcoKXwE1cMxUfV7Fhw" alt="图片1描述" width="400px" />
+  <img src="https://private-user-images.githubusercontent.com/46404382/318948047-96bc9a44-fbf1-4bc5-aaf1-883481e444c3.gif?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTIwOTA5NzQsIm5iZiI6MTcxMjA5MDY3NCwicGF0aCI6Ii80NjQwNDM4Mi8zMTg5NDgwNDctOTZiYzlhNDQtZmJmMS00YmM1LWFhZjEtODgzNDgxZTQ0NGMzLmdpZj9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDA0MDIlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwNDAyVDIwNDQzNFomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTAyYWUyMDc3Mzc3MTMyMDc2NzcyNTMzYjdkMDllY2NjNzZmZGE3MzU4ZGRlNGYyYTQxYTlhMGE2Yzc5OTIyOWEmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.aORZ4P29LIm6lex0W1KbTSoX3z_q2PzoxyK6FQXvOAo" alt="图片2描述" width="400px" />
 </p>
 
 📌 **表情**: 
@@ -79,7 +79,10 @@
   1. 使用捕捉功能记录形态键，添加进混合表情集所需的形态键列表中
   2. 使用批量创建功能，选择我们的面部规则需要的表情以及顺序创建形态键
   3. 整理形态键，只保留使用插件生成的表情
-<iframe width="560" height="315" src="https://private-user-images.githubusercontent.com/46404382/318955089-883fce1c-48e3-429b-a2d5-8dec9a09573f.mp4?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTIwOTA2MjQsIm5iZiI6MTcxMjA5MDMyNCwicGF0aCI6Ii80NjQwNDM4Mi8zMTg5NTUwODktODgzZmNlMWMtNDhlMy00MjliLWEyZDUtOGRlYzlhMDk1NzNmLm1wND9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDA0MDIlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwNDAyVDIwMzg0NFomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTE3NWM4M2VjM2E0NjYzMWQ3MzFkOWE2MjIyNmUzNzFmY2I0NDZhYTUwOGM4ZTllNzI1MjkxYTYzYzlhZTQ0MWQmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.yoACx0ya_Nk416-T9s5H9CCuFI23wLAD7TSEZfnfU04" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+
+https://github.com/Saberafter/Blender_L4D2_Character_Tools/assets/46404382/3fb5ccee-9b69-4e7b-bab8-933de9a60810
+
 
 
 ## 鸣谢
