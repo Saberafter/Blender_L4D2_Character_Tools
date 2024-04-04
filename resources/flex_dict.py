@@ -1,3 +1,18 @@
+# Copyright (C) <2024> <Merami>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # 这里存储了做表情vta使用的形态键字典，其中包含形态键的名称和它们的可能混合值
 # 左侧为vta使用的新形态键名称，数字对应表情模板的排序
 # 右侧括号内可添加对应形态键的混合变形数值

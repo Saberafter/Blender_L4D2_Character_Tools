@@ -1,3 +1,18 @@
+# Copyright (C) <2024> <Merami>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # -*- coding: utf-8 -*-
 import bpy
 import os
@@ -719,8 +734,15 @@ class L4D2_OT_AllCreate(bpy.types.Operator):
             was_created = False  # 追踪是否创建了对应的键
             if not mixes:  # 如果mixes为空列表，表示需要创建一个空的形态键
                 # 这里我们假设如果形状键块不存在，我们需要先创建一个
-                if 'Basis' not in shape_keys.key_blocks:
-                    obj.shape_key_add(name='Basis', from_mix=False)
+                # 检查Blender界面所使用的语言，并设定相应的基型键名称
+                if bpy.context.preferences.view.language == 'zh_CN':
+                    basis_key_name = '基型'
+                else:
+                    basis_key_name = 'Basis'
+
+                # 使用设定的基型键名称进行检查和创建
+                if basis_key_name not in shape_keys.key_blocks:
+                    obj.shape_key_add(name=basis_key_name, from_mix=False)
                 # 创建一个新的形态键，没有任何变化
                 obj.shape_key_add(name=key_name, from_mix=False)
                 was_created = True
@@ -756,8 +778,15 @@ class L4D2_OT_AllCreate(bpy.types.Operator):
                 can_mix = any(sub_key in shape_keys.key_blocks for mix in mixes for sub_key in mix)
                 # 如果无法混合（即所有需要混合的键都不存在），则创建一个空的键
                 if not can_mix:
-                    if 'Basis' not in shape_keys.key_blocks:
-                        obj.shape_key_add(name='Basis', from_mix=False)
+                    # 检查Blender界面所使用的语言，并设定相应的基型键名称
+                    if bpy.context.preferences.view.language == 'zh_CN':
+                        basis_key_name = '基型'
+                    else:
+                        basis_key_name = 'Basis'
+
+                    # 使用设定的基型键名称进行检查和创建
+                    if basis_key_name not in shape_keys.key_blocks:
+                        obj.shape_key_add(name=basis_key_name, from_mix=False)
                     obj.shape_key_add(name=key_name, from_mix=False)
                     was_created = True
                     used_as_final.add(key_name)
@@ -821,11 +850,15 @@ class L4D2_OT_SortShapeKeys(bpy.types.Operator):
     bl_description = 'Automatically delete useless shape keys and organize the shape key list\nBe sure to backup'
 
     def execute(self, context):
-        # 假设created_keys是一个场景属性，存储了创建的键的名称
+        # 检查基础形态键的名称并适应不同语言环境
+        def check_basis_name():
+            return '基型' if '基型' in shape_keys.keys() else 'Basis'
+
+        # 如果场景中包含了 created_keys 属性，保存创建的键名
         if "created_keys" in context.scene:
             created_keys = set(context.scene["created_keys"])
         else:
-            self.report({'WARNING'}, "没有找到创建的键的跟踪信息。")
+            self.report({'WARNING'}, "没有找到创建键的跟踪信息。")
             return {'CANCELLED'}
 
         # 退出形态键锁定/编辑模式
@@ -834,12 +867,19 @@ class L4D2_OT_SortShapeKeys(bpy.types.Operator):
         
         # 获取当前对象的形态键集合
         shape_keys = bpy.context.object.data.shape_keys.key_blocks
+        
+        # 找到基础形态键的正确名称 ('基型' 或 'Basis') 并确保其位于第一位
+        basis_name = check_basis_name()
+        basis_index = shape_keys.keys().index(basis_name) if basis_name in shape_keys.keys() else None
+        if basis_index is not None and basis_index != 0:
+            bpy.context.object.active_shape_key_index = basis_index
+            bpy.ops.object.shape_key_move(type='TOP')
 
-        # 遍历形态键集合，删除不是由L4D2_OT_CreateSelectedKey和L4D2_OT_AllCreate创建的形态键
-        for key in shape_keys[:]:  # 生成shape_keys的副本列表
-            if key.name not in created_keys and key.name != 'Basis':
-                bpy.context.object.active_shape_key_index = shape_keys.keys().index(key.name)
-                bpy.ops.object.shape_key_remove(all=False)
+        # 遍历形态键集合，删除不是由特定操作创建的形态键
+        for key in shape_keys[:]:  # 复制一份形态键列表用于遍历
+            if key.name not in created_keys and key.name != basis_name:  # 如果键名不在创建列表中，并且不是基础形状键
+                bpy.context.object.active_shape_key_index = shape_keys.keys().index(key.name)  # 设为活动形态键
+                bpy.ops.object.shape_key_remove(all=False)  # 移除当前形态键
 
         return {'FINISHED'}
 
