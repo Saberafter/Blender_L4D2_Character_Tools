@@ -126,7 +126,7 @@ https://github.com/Saberafter/Blender_L4D2_Character_Tools/assets/46404382/a98e7
 - 残剑斩龙：3DMAX的VRD插件
 - [SourceOps](https://github.com/bonjorno7/SourceOps)：获取骨骼位置/旋转坐标
 - [BoneAnimCopy](https://github.com/kumopult/blender_BoneAnimCopy)：骨骼映射思路
-- 发布人物制作教程的作者们：他们的教程是本插件重要的学习基础
+- 发布人物制作教程的作者们：插件重要的学习基础
 
 ## 相关工具(广告)
 星落老师的Neko系列工具：
