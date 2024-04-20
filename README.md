@@ -101,7 +101,10 @@
   2. 使用"<span style="color:yellow">批量创建</span>"功能，选择我们面部规则需要的表情和顺序生成新的形态键。
   3. "<span style="color:yellow">整理形态键</span>",只保留使用插件生成的表情。
   
-<video src="assets/13.mp4" controls title="表情"></video>
+
+
+https://github.com/Saberafter/Blender_L4D2_Character_Tools/assets/46404382/a98e7858-69f2-4035-986d-4df931404993
+
 
 ## 致谢
 - 抹茶芝士✰：启发性的对骨脚本
