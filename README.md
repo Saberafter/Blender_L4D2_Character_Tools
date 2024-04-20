@@ -1,5 +1,12 @@
 # Blender_L4D2_Character_Tools
-这是一个旨在提升求生之路2人物Mod制作效率的插件(*´▽｀)ノノ
+这是一个为求生之路2人物模组制作者开发的Blender插件，旨在提升求生之路2人物模组的制作效率(*´▽｀)ノノ
+
+## 前言
+⚠️本插件主要由AI语言模型ChatGPT辅助编写代码,并由作者进行审查、测试和修改。虽然已尽最大努力确保插件的可用性和稳定性,但不能完全保证不存在潜在的bug或兼容性问题。
+
+插件起点来源于抹茶芝士✰最初分享的对齐骨骼脚本。在后续的插件测试和使用过程中,他也给了我很多宝贵的意见和建议。同时在他自己制作MOD的过程中,我的插件从他那里得到了大量的实战反馈,这些反馈帮助我不断完善插件的功能。
+
+如果你在使用过程中遇到任何问题或有任何改进建议,欢迎在Github仓库中提交Issue。感谢你的理解与支持!
 
 ## 特性
 - 运用预设的骨骼映射关系快速进行骨骼对齐与合并
@@ -44,19 +51,18 @@
 
 - 嫁接流程分为两种:
 
-   - 将自定义骨骼重命名为官方骨骼名称,然后使用插件的"合并骨骼"功能将骨骼及权重合并至官方骨架。
+   - 使用插件的将骨骼及权重合并至官方骨架。
     
-      参考视频：[轻语老师的blender教程](https://www.bilibili.com/video/BV1414y1U7JX?t=432.4&p=3)，[星落老师的权重转移插件](https://www.bilibili.com/video/BV121421R7J7/)
+      参考视频：[星落老师的权重转移插件](https://www.bilibili.com/video/BV121421R7J7/)
 
-   - 保留原骨骼,使用插件重新设置骨骼的父子级关系。主要依托于对骨阶段使用的骨骼映射关系，也是接下来主要介绍的插件功能。
+   - 保留原骨骼,使用插件重新设置骨骼的父子级关系。主要依托于对骨阶段使用的骨骼映射关系，也是接下来要介绍的插件功能。
 
 
 - "<span style="color:yellow">嫁接骨骼</span>"功能利用骨骼映射关系和骨骼间的距离判定,自动为重合的骨骼设置父子级关系。
-- "<span style="color:yellow">嫁接骨骼</span>"的三种使用情况:
+- "<span style="color:yellow">嫁接骨骼</span>"功能的三种使用情况:
   1. 未选中任何骨骼时,对全部骨骼进行嫁接操作。
   2. 选中部分骨骼时,只对选中的骨骼进行嫁接操作。
   3. 特别的,多选骨骼时,如果选中了官方骨骼,其他选中的骨骼(无论是否存在映射关系)都会成为该官方骨骼的子级。
-- 插件提供了"<span style="color:yellow">重命名骨骼</span>"功能,可根据骨骼映射字典批量修改骨骼名称。
 ![嫁接1](assets/5.gif)
 ![嫁接2](assets/6.gif)
 
@@ -94,17 +100,19 @@
   1. 通过"<span style="color:yellow">捕捉形态键</span>"功能记录形态键,添加到混合表情集的形态键列表中。 
   2. 使用"<span style="color:yellow">批量创建</span>"功能，选择我们面部规则需要的表情和顺序生成新的形态键。
   3. "<span style="color:yellow">整理形态键</span>",只保留使用插件生成的表情。
+  
 <video src="assets/13.mp4" controls title="表情"></video>
 
 ## 致谢
-- 抹茶芝士✰：对骨脚本&灵感来源
+- 抹茶芝士✰：启发性的对骨脚本
 - 残剑斩龙：3DMAX的VRD插件思路
 - [SourceOps](https://github.com/bonjorno7/SourceOps)：获取骨骼位置/旋转坐标
 - [BoneAnimCopy](https://github.com/kumopult/blender_BoneAnimCopy)：骨骼映射思路
+- ChatGPT: 懂的好多的AI语言模型
 - 发布人物制作教程的作者们
 
-如果你对插件有使用问题或者功能建议，欢迎你在Github上提交issue。
-
 ## 广告
-- L4D2MOD管理工具：[NekoVpk](https://github.com/Starfelll/NekoVpk)
+星落老师的Neko工具们：
+- 更好 更快 更强的mdl编译器：[NekoMdl](https://steamcommunity.com/sharedfiles/filedetails/?id=3142607978)
 - 通用游戏MOD权重转移插件：[NekoTools](https://github.com/Starfelll/Blender_Neko_Tools)
+- 模组管理工具：[NekoVpk](https://github.com/Starfelll/NekoVpk)
