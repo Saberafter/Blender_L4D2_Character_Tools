@@ -1,5 +1,5 @@
 # Blender_L4D2_Character_Tools
-这是一个旨在提升求生之路2人物Mod制作效率的插件！(*´▽｀)ノノ
+这是一个旨在提升求生之路2人物Mod制作效率的插件(*´▽｀)ノノ
 
 ## 特性
 - 运用预设的骨骼映射关系快速进行骨骼对齐与合并
@@ -44,12 +44,15 @@
 
 - 嫁接流程分为两种:
 
-   - 将自定义骨骼重命名为官方骨骼名称,然后使用插件的"合并骨骼"功能将同名骨骼及权重合并至官方骨架。
-   - 保留原骨骼名称,使用插件重新设置骨骼的父子级关系。
+   - 将自定义骨骼重命名为官方骨骼名称,然后使用插件的"合并骨骼"功能将骨骼及权重合并至官方骨架。
+    
+      参考视频：[轻语老师的blender教程](https://www.bilibili.com/video/BV1414y1U7JX?t=432.4&p=3)，[星落老师的权重转移插件](https://www.bilibili.com/video/BV121421R7J7/)
 
-[轻语老师的视频](https://www.bilibili.com/video/BV1414y1U7JX?t=432.4&p=3)
+   - 保留原骨骼,使用插件重新设置骨骼的父子级关系。主要依托于对骨阶段使用的骨骼映射关系，也是接下来主要介绍的插件功能。
+
+
 - "<span style="color:yellow">嫁接骨骼</span>"功能利用骨骼映射关系和骨骼间的距离判定,自动为重合的骨骼设置父子级关系。
-- "<span style="color:yellow">嫁接骨骼</span>"有两种主要模式和一种特殊模式:
+- "<span style="color:yellow">嫁接骨骼</span>"的三种使用情况:
   1. 未选中任何骨骼时,对全部骨骼进行嫁接操作。
   2. 选中部分骨骼时,只对选中的骨骼进行嫁接操作。
   3. 特别的,多选骨骼时,如果选中了官方骨骼,其他选中的骨骼(无论是否存在映射关系)都会成为该官方骨骼的子级。
@@ -100,6 +103,8 @@
 - [BoneAnimCopy](https://github.com/kumopult/blender_BoneAnimCopy)：骨骼映射思路
 - 发布人物制作教程的作者们
 
-这个插件是为了帮助"求生之路2"的Mod制作者们更高效地进行制作工作。希望这个插件可以使他们的工作变得更轻松。
-
 如果你对插件有使用问题或者功能建议，欢迎你在Github上提交issue。
+
+## 广告
+- L4D2MOD管理工具：[NekoVpk](https://github.com/Starfelll/NekoVpk)
+- 通用游戏MOD权重转移插件：[NekoTools](https://github.com/Starfelll/Blender_Neko_Tools)
