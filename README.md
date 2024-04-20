@@ -80,8 +80,7 @@
   2. 使用批量创建功能，选择我们的面部规则需要的表情以及顺序创建形态键
   3. 整理形态键，只保留使用插件生成的表情
 
-https://github.com/Saberafter/Blender_L4D2_Character_Tools/assets/13.mp4
-
+<video src="https://github.com/Saberafter/Blender_L4D2_Character_Tools/assets/13.mp4"></video>
 
 
 ## 致谢
