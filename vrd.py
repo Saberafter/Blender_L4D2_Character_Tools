@@ -19,7 +19,6 @@ import math
 from collections import defaultdict
 from bpy.props import FloatProperty, BoolProperty, EnumProperty, StringProperty, CollectionProperty, IntProperty, PointerProperty
 
-
 last_export_path = ""
 
 def get_animations_enum(self, context):
@@ -37,7 +36,7 @@ def find_object_with_bone(bone_name):
 def generate_export_content(context, project_item):  # 接受 project_item 参数
     cxbones = project_item.bone_set.cxbone_list  # 利用 project_item 获取 cxbones
     qdbones = project_item.bone_set.qdbone_list  # 利用 project_item 获取 qdbones
-    
+
     content = ""
 
     for i, (cxbone, qdbone) in enumerate(zip(cxbones, qdbones)):
@@ -73,7 +72,6 @@ def generate_export_content(context, project_item):  # 接受 project_item 参�
             content += "\n"
     return content
 
-
 # 辅助函数：生成新的导出内容文本
 def generate_export_content_neko(context, project_item):  # 接受 project_item 参数
     cxbones = project_item.bone_set.cxbone_list  # 利用 project_item 获取 cxbones
@@ -99,7 +97,7 @@ def generate_export_content_neko(context, project_item):  # 接受 project_item 
             
             # 创建输出字符串
             content += f'$NekoDriverBone "{qdbone_name}" {{\n'
-            content += f'    pose "{animation_name}.smd"\n'
+            content += f'    pose "anims/{animation_name}.smd"\n'
             # 将每个cxbone的angle值用作trigger的第一个参数
             for frame in range(0, 40, 10):
                 content += f'    trigger {angle} {frame}\n'
@@ -146,7 +144,6 @@ class ProjectItem(bpy.types.PropertyGroup):
         description="Select the action bound to the project"
     )
 
-
 class CXBONE_UL_List(bpy.types.UIList):
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
@@ -161,7 +158,6 @@ class CXBONE_UL_List(bpy.types.UIList):
         elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
             layout.prop(item, "name", text="")
-
 
 # 定义一个UI列表用于显示qdbone
 class QDBONE_UL_List(bpy.types.UIList):
@@ -286,7 +282,6 @@ class L4D2_PT_VRDPanel(bpy.types.Panel):
             layout.operator('vrd.export_bones', text='Copy to Clipboard', icon="COPYDOWN").action='NEKOMDL_EXPORT_CLIPBOARD'
             layout.operator('vrd.export_bones', text='Export to File', icon="FILE_NEW").action='NEKOMDL_EXPORT_FILE'
 
-
 class VRD_OT_ExportBones(bpy.types.Operator):
     bl_idname = "vrd.export_bones"
     bl_label = "Export bone VRD data"
@@ -343,21 +338,29 @@ class VRD_OT_ExportBones(bpy.types.Operator):
             if not context.scene.vrd_export_path:
                 self.report({'ERROR'}, "请先设置导出的文件路径！")
                 return {'CANCELLED'}
-        filepath = bpy.path.abspath(context.scene.vrd_export_path)
-        if filepath.endswith(('\\', '/')):
-            self.report({'ERROR'}, "请在导出路径提供一个具体的文件名")
-            return {'CANCELLED'}
-        try:
-            with open(filepath, 'w') as f:
-                f.write(content_to_export)
-        except Exception as e:
-            self.report({'ERROR'}, "文件写入失败: {}".format(e))
-            return {'CANCELLED'}
-            self.report({'INFO'}, "文本已保存到文件：{}".format(context.scene.vrd_export_path))
-        else:  
+                
+            # 如果是导出到文件的情况，继续执行下面的文件写入
+            filepath = bpy.path.abspath(context.scene.vrd_export_path)
+            if filepath.endswith(('\\', '/')):
+                self.report({'ERROR'}, "请在导出路径提供一个具体的文件名")
+                return {'CANCELLED'}
+                
+            try:
+                with open(filepath, 'w') as f:
+                    f.write(content_to_export)
+                self.report({'INFO'}, "文本已保存到文件：{}".format(context.scene.vrd_export_path))
+            except Exception as e:
+                self.report({'ERROR'}, "文件写入失败: {}".format(e))
+                return {'CANCELLED'}
+                
+        elif self.action in {'DEFAULT_EXPORT_CLIPBOARD', 'NEKOMDL_EXPORT_CLIPBOARD'}:
+            # 如果是导出到剪贴板的情况，跳过文件写入，直接将内容复制到剪贴板
             context.window_manager.clipboard = content_to_export
             self.report({'INFO'}, "文本已复制到剪贴板。")
-
+        else:
+            self.report({'ERROR'}, "未知的导出动作")
+            return {'CANCELLED'}
+            
         return {'FINISHED'}
     
     # 根据action类型生成导出内容
@@ -567,7 +570,7 @@ class VRD_OT_OpenFile(bpy.types.Operator):
 class VRD_OT_AutoPose(bpy.types.Operator):
     bl_idname = "vrd.auto_pose"
     bl_label = "Generate VRD Action"
-    bl_description = "Create actions named 'VRD' and 'VRD_Foot', insert keyframes of 4 official bone 'VRD' poses from 0 to 30 frames"
+    bl_description = "Create actions named 'VRD' and 'VRD_Foot', insert keyframes of 4 standard bone 'VRD' poses from 0 to 30 frames"
 
     @staticmethod
     def set_keyframes(armature, frame, bone_names, rotations):
@@ -621,9 +624,9 @@ class VRD_OT_AutoPose(bpy.types.Operator):
             actions = [
                 {"name": "VRD", "bones": ["ValveBiped.Bip01_L_Thigh", "ValveBiped.Bip01_R_Thigh", "ValveBiped.Bip01_L_Hand", "ValveBiped.Bip01_R_Hand"],
                 "rotations": [
-                    [(0.608762, 0, 0, -0.793354), (0.608762, 0, 0, -0.793354), (0.707107, 0.707107, 0, 0), (0.707107, -0.707107, 0, 0)],
-                    [(0.630365, -0.163028, -0.104526, -0.796198), (0.630365, 0.163028, 0.104526, -0.796198), (0.707107, -0.707107, 0, 0), (0.707107, 0.707107, 0, 0)],
-                    [(0.707107, 0, -0.707107, 0), (0.707107, 0, 0.707107, 0), (1,0, 0, 0), (1,0, 0, 0)]
+                    [(0.707107, 0, 0, -0.707107), (0.707107, 0, 0, -0.707107), (0.707107, 0.707107, 0, 0), (0.707107, -0.707107, 0, 0)],
+                    [(0.683013, -0.183013, -0.183013, -0.683013), (0.683013, 0.183013, 0.183013, -0.683013), (0.707107, -0.707107, 0, 0), (0.707107, 0.707107, 0, 0)],
+                    [(0.965926, -1.74183e-08, -0.258819, -2.91367e-09), (0.965926, 2.37505e-08, 0.258819, -1.17871e-08), (1,0, 0, 0), (1,0, 0, 0)]
                 ]},
                 
                 {"name": "VRD_Foot", "bones": ["ValveBiped.Bip01_L_Foot", "ValveBiped.Bip01_R_Foot"],
@@ -669,7 +672,6 @@ def register():
     bpy.types.Scene.project_items = CollectionProperty(type=ProjectItem)
     bpy.types.Scene.active_project_index = IntProperty()
     bpy.types.Scene.export_all = BoolProperty(name="Export All VRD",description="Export all VRD texts obtained from the bound animations",default=True)
-
 
 # 注销插件
 def unregister():

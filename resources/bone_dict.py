@@ -618,13 +618,13 @@ bone_names = {
     "middle_2_l": ["middlefinger2l"],
     "middle_3_l": ["middlefinger3l"],
 
-    "ring_1_l": ["ringfinger1l","indexproximall"],
-    "ring_2_l": ["ringfinger2l","indexintermediatel"],
-    "ring_3_l": ["ringfinger3l","indexdistall"],
+    "ring_1_l": ["ringfinger1l"],
+    "ring_2_l": ["ringfinger2l"],
+    "ring_3_l": ["ringfinger3l"],
 
-    "pinkie_1_l": ["littlefinger1l","thumbproximall"],
-    "pinkie_2_l": ["littlefinger2l","thumbintermediatel"],
-    "pinkie_3_l": ["littlefinger3l","thumbdistall"],
+    "pinkie_1_l": ["littlefinger1l"],
+    "pinkie_2_l": ["littlefinger2l"],
+    "pinkie_3_l": ["littlefinger3l"],
 
     "right_shoulder": ["rightshoulder", "shoulderr", "rshoulder"],
     "right_arm": ["rightarm", "armr", "rarm", "upperarmr", "rightupperarm", "uparmr", "ruparm"],

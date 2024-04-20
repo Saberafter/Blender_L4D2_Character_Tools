@@ -131,7 +131,6 @@ def update_bone_list_selection(scene, depsgraph):
                     selected_indices.append(index)  # 将选中骨骼的索引添加至列表
         scene['selected_bones_indices'] = selected_indices  # 将索引列表存储于场景属性中，用于之后跳转
 
-
 class Jigglebone_OT_AddPreset(bpy.types.Operator):
     bl_idname = "jigglebone.add_preset"
     bl_label = "Add/Overwrite Preset"
@@ -292,7 +291,6 @@ class JigglebonePropertyGroup(bpy.types.PropertyGroup):
                     if edit_bone is not None:
                         edit_bone.select = self.selected
 
-
 # 插件面板
 class JigglebonePanel(bpy.types.Panel):
     bl_label = "L4D2 Jigglebone Tools"
@@ -400,7 +398,6 @@ class JIGGLEBONE_UL_List(bpy.types.UIList):
             layout.alignment = 'CENTER'
             layout.label(text="", icon='BONE_DATA')
 
-    
 class Jigglebone_OT_SelectAction(bpy.types.Operator):
     bl_idname = 'jigglebone.select_action'
     bl_label = 'Manipulate the selection state of the list'
@@ -433,16 +430,20 @@ class Jigglebone_OT_SelectAction(bpy.types.Operator):
         ops[self.action]()
 
         return {'FINISHED'}
-
-
-
-# 创建设置角度的操作
+        
+def update_enable_param(self, context):
+    bone = context.scene.jigglebone_list[context.scene.jigglebone_list_index]
+    if hasattr(bone, f"enable_{self.target_param}"):
+        self.enable_param = getattr(bone, f"enable_{self.target_param}")
 
 class Jigglebone_OT_SetAngle(bpy.types.Operator):
     """Batch customize settings for selected bones"""
     bl_idname = "jigglebone.set_angle"
     bl_label = "Parameter Step Setting"
-    
+
+    enable_param: BoolProperty(name="enable param", default=True, description="enable param")
+
+
     min_angle: FloatProperty(
         name="Minimum",
         description="The minimum value of the parameter",
@@ -489,35 +490,48 @@ class Jigglebone_OT_SetAngle(bpy.types.Operator):
     target_param: EnumProperty(
         name="Target Parameter",
         description="Choose the parameter to be incremented or decremented",
-        items=get_selectable_params
+        items=get_selectable_params,
+        update=update_enable_param  # 绑定更新函数
     )
     
     def invoke(self, context, event):
-        self.target_param = 'angle_constraint'  # 设置默认值
+        self.target_param = 'angle_constraint'  # 设置默认的参数
+        # 根据选择的参数决定 enable_param 的初始状态
+        bone = context.scene.jigglebone_list[context.scene.jigglebone_list_index]
+        if hasattr(bone, f"enable_{self.target_param}"):
+            self.enable_param = getattr(bone, f"enable_{self.target_param}")
+
         return context.window_manager.invoke_props_dialog(self)
     
     def draw(self, context):
         layout = self.layout
         layout.prop(self, 'target_param', text="Parameter Selection")
-        
-        param_is_vector = False
-        for param in flexible_params + base_params:  
-            if param[0] == self.target_param and param[1] is FloatVectorProperty:
-                param_is_vector = True
-                break
-        
-        if param_is_vector:
-            col = layout.column(align=True)
-            col.prop(self, "min_anglex")
-            col.prop(self, "min_angley")
-            col = layout.column(align=True)
-            col.prop(self, "max_anglex")
-            col.prop(self, "max_angley")
+        row = layout.row()
+        # 如果当前参数为 BoolProperty，则不需要显示数值调整选项
+        if self.target_param == "allow_length_flex":
+            row = layout.row()
+            row.prop(self, 'enable_param', text="Enable/Disable")
         else:
-            layout.prop(self, 'min_angle')
-            layout.prop(self, 'max_angle')
-        
-        layout.prop(self, 'reverse_order')
+            row = layout.row()
+            row.prop(self, 'enable_param', text="Enable/Disable")
+            row.prop(self, 'reverse_order')
+
+            param_is_vector = self.target_param in [param[0] for param in flexible_params + base_params if param[1] is FloatVectorProperty]
+            
+            split = layout.split(factor=0.5)
+            col1 = split.column()   
+            col2 = split.column()
+            if param_is_vector:
+                col1.prop(self, "min_anglex")
+                col1.prop(self, "max_anglex")
+
+                col2.prop(self, "min_angley")
+                col2.prop(self, "max_angley")
+            else:
+                layout.prop(self, 'min_angle')
+                layout.prop(self, 'max_angle')
+            
+
 
     def execute(self, context):
         selected_bones = [bone for bone in context.scene.jigglebone_list if bone.selected]
@@ -526,28 +540,37 @@ class Jigglebone_OT_SetAngle(bpy.types.Operator):
             self.report({'ERROR'}, "没有选中的骨骼")
             return {'CANCELLED'}
         
-        # 如果只有一个骨骼选中或最小值等于最大值，则所有选中骨骼设置为同一个值
-        increment = (self.max_angle - self.min_angle) / (len(selected_bones) - 1) if len(selected_bones) > 1 else 0
-        value = self.min_angle
-        
-        is_vector_property = isinstance(getattr(selected_bones[0], self.target_param), bpy.types.bpy_prop_array)
-        
-        if is_vector_property:  # 如果是向量属性
-            increment_x = (self.max_anglex - self.min_anglex) / (len(selected_bones) - 1) if len(selected_bones) > 1 else 0
-            increment_y = (self.max_angley - self.min_angley) / (len(selected_bones) - 1) if len(selected_bones) > 1 else 0
-            value_x = self.min_anglex
-            value_y = self.min_angley
-        
-        for index, bone in enumerate(selected_bones):
-            if is_vector_property:  # 如果是向量属性
-                current_value = (value_x + increment_x * index, value_y + increment_y * index)
-            else:
-                current_value = value + increment * index
-            setattr(bone, self.target_param, current_value)
+        # 由于 allow_length_flex 是特殊处理的，没有向量属性，所以单独判断
+        if self.target_param == "allow_length_flex":
+            for bone in selected_bones:
+                # 对于 allow_length_flex，只设置它的开关属性 enable_allow_length_flex
+                if hasattr(bone, f"enable_{self.target_param}"):
+                    setattr(bone, f"enable_{self.target_param}", self.enable_param)
+        else:
+            # 如果不是 allow_length_flex，继续之前的逻辑
+            increment = (self.max_angle - self.min_angle) / (len(selected_bones) - 1) if len(selected_bones) > 1 else 0
+            value = self.min_angle
+
+            is_vector_property = self.target_param in [param[0] for param in flexible_params + base_params if param[1] is FloatVectorProperty]
+            if is_vector_property:  
+                increment_x = (self.max_anglex - self.min_anglex) / (len(selected_bones) - 1) if len(selected_bones) > 1 else 0
+                increment_y = (self.max_angley - self.min_angley) / (len(selected_bones) - 1) if len(selected_bones) > 1 else 0
+                value_x = self.min_anglex
+                value_y = self.min_angley
+            
+            for index, bone in enumerate(selected_bones):
+                if hasattr(bone, f"enable_{self.target_param}"):
+                    setattr(bone, f"enable_{self.target_param}", self.enable_param)
+                    
+                if is_vector_property:  
+                    current_value = (value_x + increment_x * index, value_y + increment_y * index)
+                    setattr(bone, self.target_param, current_value)
+                else:
+                    current_value = value + increment * index if not self.reverse_order else self.max_angle - increment * index
+                    setattr(bone, self.target_param, current_value)
         
         return {'FINISHED'}
 
-    
 # 创建添加骨骼的操作
 class Jigglebone_OT_AddBone(bpy.types.Operator):
     bl_idname = "jigglebone.add_bone"
@@ -823,8 +846,27 @@ class Jigglebone_OT_ExportJigglebone(bpy.types.Operator):
 
     def export_to_clipboard(self, text):
         bpy.context.window_manager.clipboard = text
-        self.report({'INFO'}, "飘骨文本已经复制到剪贴板")
+        self.report({'INFO'}, "所选飘骨文本已经复制到剪贴板")
 
+    def generate_export_text_selected(self, context):
+        scene = context.scene
+        jigglebone_list = scene.jigglebone_list
+
+        output = ""
+        for bone in jigglebone_list:
+            if bone.selected:
+                bone_output = f'$jigglebone "{bone.name}"\n{{\n'
+                if bone.is_flexible:
+                    bone_output += "    is_flexible\n    {\n"
+                    bone_output += self.add_param_section(bone, flexible_params)
+                    bone_output += "    }\n"
+                if bone.has_base_spring:
+                    bone_output += "    has_base_spring\n    {\n"
+                    bone_output += self.add_param_section(bone, base_params)
+                    bone_output += "    }\n"
+                bone_output += "}\n\n"
+                output += bone_output
+        return output
 
     def export_to_file(self, text, filepath):
         # 将 '//' 转换为实际的文件路径
@@ -842,14 +884,27 @@ class Jigglebone_OT_ExportJigglebone(bpy.types.Operator):
             return {'CANCELLED'}
 
     def execute(self, context):
-        text = self.generate_export_text(context)
+        # 获取所有的骨骼列表
+        jigglebone_list = context.scene.jigglebone_list
+        # 判断当前操作是否是导出到剪贴板，并且列表中至少有一个骨骼被选中
+        is_clipboard_action = self.action == 'CLIPBOARD'
+        has_selected_bones = is_clipboard_action and any(bone.selected for bone in jigglebone_list)
+        
+        # 如果操作是导出到剪贴板，并且有选中的骨骼，只导出选中项的文本
+        # 否则导出全部骨骼文本
+        if has_selected_bones:
+            text = self.generate_export_text_selected(context)
+        else:
+            text = self.generate_export_text(context)
+        
         filepath = context.scene.jigglebone_export_path  # 这里从场景中获取用户设置的文件路径
         if not text:
             self.report({'ERROR'}, "无可导出的数据")
             return {'CANCELLED'}
-        if self.action == 'CLIPBOARD':
+        if is_clipboard_action:
             self.export_to_clipboard(text)
-        elif self.action == 'FILE':
+        else:
+            # 导出到文件的逻辑保持原样，不受是否有选中项的影响
             if filepath:
                 # 用户已经设定了输出路径，直接将文件保存到用户指定的路径
                 self.export_to_file(text, filepath)
@@ -859,8 +914,6 @@ class Jigglebone_OT_ExportJigglebone(bpy.types.Operator):
                 return {'CANCELLED'}
         return {'FINISHED'}
 
-
-    
 class Jigglebone_OT_OpenFile(bpy.types.Operator):
     bl_idname = "jigglebone.open_file"
     bl_label = "Open File or Folder"
@@ -909,6 +962,7 @@ class Jigglebone_OT_OpenFile(bpy.types.Operator):
             return {'CANCELLED'}
 
         return {'FINISHED'}
+    
 class JIGGLEBONE_OT_UpdateSelection(bpy.types.Operator):
     """Manually update the jigglebone list"""
     bl_idname = "jigglebone.update_selection"

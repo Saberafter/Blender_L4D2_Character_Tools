@@ -65,6 +65,8 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
         row.operator("l4d2.remove_constraint", text="Remove TransformConstraint", icon="X").action = 'REMOVE_TRANS'
         row = layout.row()
         row.operator("l4d2.rename_bones_operator", icon="GREASEPENCIL")
+        row = layout.row()
+        row.operator("l4d2.unbind_keep_shape", icon="CONSTRAINT_BONE")
 
         layout.prop(context.scene, "bl_is_detailed", text="Bone Mapping Management", icon="TRIA_DOWN" if context.scene.bl_is_detailed else "TRIA_RIGHT")
 
@@ -95,8 +97,6 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
             # 创建两个下拉框，用于选择要合并的顶点组
             col_right.prop_search(context.scene, "vertex_group_name_1", context.active_object, "vertex_groups", text="", icon="RADIOBUT_ON")
             col_right.prop_search(context.scene, "vertex_group_name_2", context.active_object, "vertex_groups", text="", icon="RADIOBUT_OFF")
-
-
 
 class L4D2_PT_VRDTools(bpy.types.Panel):
     bl_label = "🕹️ VRD Tools"
@@ -239,7 +239,6 @@ class L4D2_OT_select_pattern(bpy.types.Operator):
         # 根据输入框的内容选择物体
         bpy.ops.object.select_pattern(pattern=context.object.select_pattern)
         return {'FINISHED'}
-    
 
 # 定义操作类
 class L4D2_OT_MergeVertexGroups(bpy.types.Operator):

@@ -35,6 +35,9 @@ translation_dict = {
         ("Operator", "Rename Bone"): "重命名骨骼",
         ("*", "Rename Bones According to Bone Mapping"): "根据骨骼映射关系重命名骨骼",
 
+        ("Operator", "Unbind Preserve Shape"): "骨骼断绑保形",
+        ("*", "Maintain shape and transformation when breaking bone parent-child relationships"): "在断开骨骼父子关系时保持其形状和变换",
+
         ("Operator", "Remove Bone Constraint"): "移除骨骼约束",
         ("*", "Bulk Remove Constraints from Selected Bones"): "批量移除所选骨骼的约束",
         ("Operator", "Remove All Constraint"): "移除骨骼约束",

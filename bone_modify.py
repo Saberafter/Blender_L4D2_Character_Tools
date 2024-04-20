@@ -75,7 +75,6 @@ def bone_keys_enum(self, context):
 
     return items
 
-
 # 骨架骨骼名称下拉列表枚举项创建函数
 def bone_names_enum(self, context):
     # 假设armature_object是用户选择的骨架对象，这一部分的实现取决于实际数据
@@ -112,6 +111,7 @@ class BoneDictManagerProperties(bpy.types.PropertyGroup):
         description="Display all values for the selected dictionary key",
         items=bone_values_enum
     )
+
 # 添加骨骼名到所选键操作
 class L4D2_OT_AddBoneName(bpy.types.Operator):
     """Automatically remove symbols and convert to lowercase"""
@@ -363,7 +363,7 @@ class L4D2_OT_GraftingOperator(bpy.types.Operator):
 
         bpy.ops.object.mode_set(mode='POSE')  # 返回姿态模式
         return {'FINISHED'}
-		
+
 class L4D2_OT_RenameBonesOperator(bpy.types.Operator):
     bl_idname = "l4d2.rename_bones_operator"
     bl_label = "Rename Bone"
@@ -398,7 +398,6 @@ class L4D2_OT_RenameBonesOperator(bpy.types.Operator):
                     break
 
         return {'FINISHED'}
-
 
 class L4D2_PT_BoneModifyPanel(bpy.types.Panel):
     bl_label = "L4D2 Character Tools"
@@ -437,6 +436,54 @@ class VIEW3D_PT_CustomBoneDictManager(bpy.types.Panel):
         row.operator("bone_dict_manager.add_bone_name")
         row.operator("bone_dict_manager.remove_bone_name")
 
+class L4D2_OT_UnbindAndKeepShape(bpy.types.Operator):
+    """Maintain shape and transformation when breaking bone parent-child relationships"""
+    bl_idname = "l4d2.unbind_keep_shape"
+    bl_label = "Unbind Preserve Shape"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @staticmethod
+    def store_bone_world_matrices(armature, pose_bones):
+        armature_matrix_world = armature.matrix_world
+        world_matrices = {}
+        for bone in pose_bones:
+            world_matrices[bone.name] = armature_matrix_world @ bone.matrix
+        return world_matrices
+
+    @staticmethod
+    def disconnect_pose_bones(armature, bone_names):
+        bpy.ops.object.mode_set(mode='EDIT')
+        edit_bones = armature.data.edit_bones
+        for bone_name in bone_names:
+            bone = edit_bones.get(bone_name)
+            if bone:
+                bone.use_connect = False
+                bone.parent = None
+        # bpy.ops.object.mode_set(mode='OBJECT')
+
+    @staticmethod
+    def apply_bone_world_matrices(armature, world_matrices):
+        bpy.ops.object.mode_set(mode='POSE')
+        for bone_name, world_matrix in world_matrices.items():
+            bone = armature.pose.bones.get(bone_name)
+            if bone:
+                bone.matrix = armature.matrix_world.inverted() @ world_matrix
+        # bpy.ops.object.mode_set(mode='OBJECT')
+
+    def execute(self, context):
+        armature = context.object
+        selected_pose_bones = context.selected_pose_bones
+        
+        if not armature or not selected_pose_bones or armature.type != 'ARMATURE' or context.mode != 'POSE':
+            self.report({'ERROR'}, "没有选择正确的骨骼或者不在姿态模式")
+            return {'CANCELLED'}
+
+        world_matrices = self.store_bone_world_matrices(armature, selected_pose_bones)
+        self.disconnect_pose_bones(armature, [bone.name for bone in selected_pose_bones])
+        self.apply_bone_world_matrices(armature, world_matrices)
+        
+        return {'FINISHED'}
+
 classes = [
     L4D2_OT_GraftingOperator,
     L4D2_OT_RiggingOperator,
@@ -444,6 +491,7 @@ classes = [
     L4D2_OT_AddBoneName,
     L4D2_OT_RemoveBoneName,
     L4D2_OT_RenameBonesOperator,
+    L4D2_OT_UnbindAndKeepShape
 ]
 
 def register():

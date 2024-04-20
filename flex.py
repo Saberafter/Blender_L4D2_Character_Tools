@@ -557,7 +557,6 @@ class L4D2_OT_SaveFlexPreset(bpy.types.Operator):
 
         return {'FINISHED'}
 
-
 class L4D2_OT_FlexSelectAction(bpy.types.Operator):
     bl_idname = 'l4d2.select_action'
     bl_label = 'Manipulate the selection state of the list'
@@ -595,77 +594,125 @@ def add_shape_keys_to_scene_property(context, key_names):
     # 更新场景的属性
     scene["created_keys"] = list(created_keys_set)
 
+def check_basis_name(shape_keys):
+    return '基型' if '基型' in shape_keys.key_blocks else 'Basis'
+
+def create_key(key_name, obj, shape_keys, used_as_final, auxiliary_keys, is_direct_key=False):
+    if key_name in flexmix_dict:
+        print(f"正在尝试创建形状键: {key_name}")
+        mixes = flexmix_dict[key_name]
+        was_created = False  # 追踪是否创建了对应的键
+        if not mixes:  # 如果mixes为空列表,表示需要创建一个空的形态键
+            # 这里我们假设如果形状键块不存在,我们需要先创建一个
+            basis_key_name = check_basis_name(shape_keys)
+
+            # 使用设定的基型键名称进行检查和创建  
+            if basis_key_name not in shape_keys.key_blocks:
+                obj.shape_key_add(name=basis_key_name, from_mix=False)
+            # 创建一个新的形态键,没有任何变化
+            obj.shape_key_add(name=key_name, from_mix=False)
+            was_created = True
+
+        # 遍历需要混合的形态键组合
+        for mix in mixes:
+            # 检查组合中的每一个单独键是否已经存在
+            for sub_key in mix:
+                # 如果任一键不存在,则递归创建它
+                if sub_key.lower() not in [k.name.lower() for k in shape_keys.key_blocks.values()]:
+                    print(f"形状键 {sub_key} 不存在,正在尝试创建...")
+                    # 注意这里传入is_direct_key=False因为我们在这个阶段创建的是辅助的形态键
+                    create_key(sub_key, obj, shape_keys, used_as_final, auxiliary_keys, is_direct_key=False)
+                else:
+                    print(f"形状键 {sub_key} 已存在。")
+            # 创建当前的形态键前确认所需的键都存在
+            if all(k.lower() in [sk.name.lower() for sk in shape_keys.key_blocks.values()] for k in mix):
+                # 确保所有现有的形态键都设置为0
+                for key_block in shape_keys.key_blocks:
+                    key_block.value = 0.0
+                # 根据mix字典激活需要的形态键
+                for mix_key, mix_value in mix.items():
+                    # 获取形状键时忽略大小写
+                    found_key = next((sk for sk in shape_keys.key_blocks.values() if sk.name.lower() == mix_key.lower()), None)
+                    if found_key: # 确保找到了对应的键
+                        found_key.value = mix_value
+                # 创建混合的形态键
+                obj.shape_key_add(from_mix=True)
+                new_key = shape_keys.key_blocks[-1]
+                new_key.name = key_name
+                was_created = True
+                # 重置用于混合的形态键的值为0
+                for mix_key in mix:
+                    # 可能也需要执行大小写不敏感的匹配来查找对应的键
+                    found_key = next((sk for sk in shape_keys.key_blocks.values() if sk.name.lower() == mix_key.lower()), None)
+                    if found_key: # 确保找到了对应的键
+                        found_key.value = 0.0
+                break  # 成功创建形态键,结束循环
+        if not was_created and is_direct_key:
+            # 检查是否所有需要混合的键都不存在 
+            can_mix = any(sub_key in shape_keys.key_blocks for mix in mixes for sub_key in mix)
+            # 如果无法混合(即所有需要混合的键都不存在),则创建一个空的键
+            if not can_mix:
+                basis_key_name = check_basis_name(shape_keys)
+
+                # 使用设定的基型键名称进行检查和创建
+                if basis_key_name not in shape_keys.key_blocks:
+                    obj.shape_key_add(name=basis_key_name, from_mix=False)
+                obj.shape_key_add(name=key_name, from_mix=False)
+                was_created = True
+                used_as_final.add(key_name)
+                print(f"由于相关键都不存在,已创建空键：{key_name}")
+
+        # 如果当前键已被创建
+        if was_created:
+            # 如果这是直接由用户指定创建的,添加到used_as_final集合
+            if is_direct_key:
+                used_as_final.add(key_name)
+                print(f"成功创建键：{key_name} 并将其标志为最终使用")
+                
+                # 在此处立即删除辅助键
+                keys_to_remove = auxiliary_keys - used_as_final
+                for aux_key_name in keys_to_remove:
+                    key_index = obj.data.shape_keys.key_blocks.find(aux_key_name)
+                    if key_index != -1:
+                        obj.active_shape_key_index = key_index
+                        bpy.ops.object.shape_key_remove()
+                        print(f"删除未使用的辅助键：{aux_key_name}")
+                # 清空辅助键集合
+                auxiliary_keys.clear()
+                        
+            # 否则如果它不是已有的辅助键,则添加到auxiliary_keys集合
+            else:
+                if key_name not in auxiliary_keys:
+                    auxiliary_keys.add(key_name)
+                    print(f"辅助键 '{key_name}' 加入到集合中")
+
 class L4D2_OT_CreateSelectedKey(bpy.types.Operator):
-    bl_idname = "l4d2.create_selected_key"  # 使用一个唯一的标识符
+    bl_idname = "l4d2.create_selected_key"
     bl_label = "Create Shape Keys"
     bl_description = 'Create shape keys based on the key selected in the drop-down menu'
 
     def execute(self, context):
-        def create_key(key_name, is_final_key=False):
-            created_keys = []
+        obj = context.object
+        shape_keys = obj.data.shape_keys
 
-            # 如果形态键已经存在且不是最终目标形态键，则直接返回空列表
-            if not is_final_key and key_name in bpy.context.object.data.shape_keys.key_blocks:
-                return []
-
-            if key_name in flexmix_dict:
-                mixes = flexmix_dict[key_name]
-                has_matching_value = False
-                
-                for mix in mixes:
-                    # Create preceding shape keys first if they exist in mix and are not in the key blocks
-                    for possible_key in mix.keys():
-                        if possible_key in flexmix_dict and possible_key not in bpy.context.object.data.shape_keys.key_blocks:
-                            created_keys.extend(create_key(possible_key))
-
-                    if all(old_key_name in bpy.context.object.data.shape_keys.key_blocks for old_key_name in mix):
-                        has_matching_value = True
-                        
-                        for key_block in bpy.context.object.data.shape_keys.key_blocks:
-                            key_block.value = 0
-                        
-                        for old_key_name, value in mix.items():
-                            old_key = bpy.context.object.data.shape_keys.key_blocks[old_key_name]
-                            old_key.value = value
-                            
-                        bpy.ops.object.shape_key_add(from_mix=True)
-                        new_key = bpy.context.object.data.shape_keys.key_blocks[-1]  
-                        new_key.name = key_name
-                        created_keys.append(key_name)
-                        break
-
-                if not has_matching_value:
-                    bpy.ops.object.shape_key_add(from_mix=False)
-                    new_key = bpy.context.object.data.shape_keys.key_blocks[-1]  
-                    new_key.name = key_name
-                    created_keys.append(key_name)
-                
-            return created_keys
-
+        if not shape_keys:
+            self.report({'ERROR'}, "对象上没有形态键数据。")
+            return {'CANCELLED'}
 
         selected_key = context.scene.flex_keys_enum
+
+        used_as_final = set()
+        auxiliary_keys = set()
+        
         bpy.context.object.show_only_shape_key = False
         bpy.context.object.use_shape_key_edit_mode = False
-        old_key_values = {key.name: key.value for key in bpy.context.object.data.shape_keys.key_blocks}
-        # 调用create_key函数时，传入True表示这是最终目标形态键
-        created_keys = create_key(selected_key, is_final_key=True)
-        # 将创建的键添加到场景属性中
-        add_shape_keys_to_scene_property(context, created_keys)
+        
+        create_key(selected_key, obj, shape_keys, used_as_final, auxiliary_keys, is_direct_key=True)
+        
+        add_shape_keys_to_scene_property(context, list(used_as_final))
 
-        # Restore old shape key values
-        for key_name, value in old_key_values.items():
-            if key_name in bpy.context.object.data.shape_keys.key_blocks:
-                bpy.context.object.data.shape_keys.key_blocks[key_name].value = value
-
-        # Go reverse, to delete last created shape keys first
-        for key in reversed(created_keys[:-1]):  # Exclude the last one, which is the final key resulting from the mixing 
-            key_index = bpy.context.object.data.shape_keys.key_blocks.find(key)
-            if key_index != -1:
-                bpy.context.object.active_shape_key_index = key_index
-                bpy.ops.object.shape_key_remove()
 
         return {'FINISHED'}
-
 
 
 class L4D2_OT_AllCreate(bpy.types.Operator):
@@ -708,7 +755,7 @@ class L4D2_OT_AllCreate(bpy.types.Operator):
             else:
                 op = box_left.operator('l4d2.select_action', text='', icon='CHECKBOX_DEHLT')
                 op.action = 'ALL'
-                # 如果有选中的项，则显示反选按钮
+                # 如果有选中的项,则显示反选按钮
                 if any(item.selected for item in wm.flexmix_items):
                     op_inverse = box_left.operator('l4d2.select_action', text='', icon='UV_SYNC_SELECT')
                     op_inverse.action = 'INVERSE'
@@ -726,83 +773,6 @@ class L4D2_OT_AllCreate(bpy.types.Operator):
         col = layout.column(align=True)
         col.operator("l4d2.flexmix_move_up", icon='TRIA_UP', text="")
         col.operator("l4d2.flexmix_move_down", icon='TRIA_DOWN', text="")
-
-    def create_key(self, key_name, obj, shape_keys, used_as_final, auxiliary_keys, is_direct_key=False):
-        if key_name in flexmix_dict:
-            print(f"尝试创建键：{key_name}")
-            mixes = flexmix_dict[key_name]
-            was_created = False  # 追踪是否创建了对应的键
-            if not mixes:  # 如果mixes为空列表，表示需要创建一个空的形态键
-                # 这里我们假设如果形状键块不存在，我们需要先创建一个
-                # 检查Blender界面所使用的语言，并设定相应的基型键名称
-                if bpy.context.preferences.view.language == 'zh_CN':
-                    basis_key_name = '基型'
-                else:
-                    basis_key_name = 'Basis'
-
-                # 使用设定的基型键名称进行检查和创建
-                if basis_key_name not in shape_keys.key_blocks:
-                    obj.shape_key_add(name=basis_key_name, from_mix=False)
-                # 创建一个新的形态键，没有任何变化
-                obj.shape_key_add(name=key_name, from_mix=False)
-                was_created = True
-            # 遍历需要混合的形态键组合
-            for mix in mixes:
-                # 检查组合中的每一个单独键是否已经存在
-                for sub_key in mix:
-                    # 如果任一键不存在，则递归创建它
-                    if sub_key not in shape_keys.key_blocks:
-                        # 注意这里传入is_direct_key=False因为我们在这个阶段创建的是辅助的形态键
-                        self.create_key(sub_key, obj, shape_keys, used_as_final, auxiliary_keys, is_direct_key=False)
-
-                # 创建当前的形态键前确认所需的键都存在
-                if all(k in shape_keys.key_blocks for k in mix):
-                    # 确保所有现有的形态键都设置为0
-                    for key_block in shape_keys.key_blocks:
-                        key_block.value = 0.0
-                    # 根据mix字典激活需要的形态键
-                    for mix_key, mix_value in mix.items():
-                        shape_keys.key_blocks[mix_key].value = mix_value
-                    # 创建混合的形态键
-                    obj.shape_key_add(from_mix=True)
-                    new_key = shape_keys.key_blocks[-1]
-                    new_key.name = key_name
-                    was_created = True
-                    # 重置用于混合的形态键的值为0
-                    for mix_key in mix:
-                        if mix_key in shape_keys.key_blocks:
-                            shape_keys.key_blocks[mix_key].value = 0.0
-                    break  # 成功创建形态键，结束循环
-            if not was_created and is_direct_key:
-                # 检查是否所有需要混合的键都不存在
-                can_mix = any(sub_key in shape_keys.key_blocks for mix in mixes for sub_key in mix)
-                # 如果无法混合（即所有需要混合的键都不存在），则创建一个空的键
-                if not can_mix:
-                    # 检查Blender界面所使用的语言，并设定相应的基型键名称
-                    if bpy.context.preferences.view.language == 'zh_CN':
-                        basis_key_name = '基型'
-                    else:
-                        basis_key_name = 'Basis'
-
-                    # 使用设定的基型键名称进行检查和创建
-                    if basis_key_name not in shape_keys.key_blocks:
-                        obj.shape_key_add(name=basis_key_name, from_mix=False)
-                    obj.shape_key_add(name=key_name, from_mix=False)
-                    was_created = True
-                    used_as_final.add(key_name)
-                    print(f"由于相关键都不存在，已创建空键：{key_name}")
-
-            # 如果当前键已被创建
-            if was_created:
-                # 如果这是直接由用户指定创建的，添加到used_as_final集合
-                if is_direct_key:
-                    used_as_final.add(key_name)
-                    print(f"成功创建键：{key_name} 并将其标志为最终使用")
-                # 否则如果它不是已有的辅助键，则添加到auxiliary_keys集合
-                else:
-                    if key_name not in auxiliary_keys:
-                        auxiliary_keys.add(key_name)
-                        print(f"辅助键 '{key_name}' 加入到集合中")
 
     def execute(self, context):
         wm = context.window_manager
@@ -824,22 +794,10 @@ class L4D2_OT_AllCreate(bpy.types.Operator):
         bpy.context.object.use_shape_key_edit_mode = False
         # 遍历所有选择的目标键并创建它们
         for key_name in selected_keys:
-            self.create_key(key_name, obj, shape_keys, used_as_final, auxiliary_keys, is_direct_key=True)
+            create_key(key_name, obj, shape_keys, used_as_final, auxiliary_keys, is_direct_key=True)
         # 将创建的键添加到场景属性中
         add_shape_keys_to_scene_property(context, list(used_as_final))
-    
         print(f"标记为最终使用的键: {used_as_final}")
-        print(f"当前辅助键集合: {auxiliary_keys}")
-
-        # 删除未用作最终目标键的辅助形态键
-        keys_to_remove = auxiliary_keys - used_as_final
-        print(f"即将删除的辅助形态键: {keys_to_remove}")
-        for key_name in keys_to_remove:
-            key_index = obj.data.shape_keys.key_blocks.find(key_name)
-            if key_index != -1:
-                obj.active_shape_key_index = key_index
-                bpy.ops.object.shape_key_remove()
-                print(f"删除未使用的辅助键：{key_name}")
 
         return {'FINISHED'}
 
