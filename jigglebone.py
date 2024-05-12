@@ -17,7 +17,7 @@ import bpy
 import os
 import json
 import re
-from .resources import jiggleboneparams_presets 
+from .resources import jiggleparams_presets 
 from bpy.props import FloatProperty, FloatVectorProperty, BoolProperty, EnumProperty, StringProperty, CollectionProperty, IntProperty, PointerProperty
 
 
@@ -55,7 +55,7 @@ base_params = [
 
 
 preset_dir = os.path.join(bpy.utils.resource_path('USER'), 'scripts', 'presets', 'L4D2 Character Tools')
-json_path = os.path.join(preset_dir,"jiggleboneparams_presets.json")
+json_path = os.path.join(preset_dir,"jiggleparams_presets.json")
 jigglebone_preset_dict={}
 
 # 定义飘骨列表
@@ -84,8 +84,8 @@ def read_json():
         os.makedirs(preset_dir)
 
     if not os.path.exists(json_path):
-        print(f"找不到文件: {json_path}，将使用 jiggleboneparams_presets.py 中的字典并创建一个新的 json 文件。")
-        jigglebone_preset_dict = jiggleboneparams_presets.presets
+        print(f"找不到文件: {json_path}，将使用 jiggleparams_presets.py 中的字典并创建一个新的 json 文件。")
+        jigglebone_preset_dict = jiggleparams_presets.presets
         write_json()  
     else:
         with open(json_path, 'r', encoding='utf-8') as f:
@@ -730,8 +730,8 @@ class Jigglebone_OT_ApplyFromClipboard(bpy.types.Operator):
                 setattr(bone, enable_name, False)
         
         # 生成参数名称列表
-        flexible_param_names = [param[0] for param in flexible_params]
-        base_param_names = [param[0] for param in base_params]
+        # flexible_param_names = [param[0] for param in flexible_params]
+        # base_param_names = [param[0] for param in base_params]
 
         # 使用正则表达式匹配剪贴板中的参数，并应用到骨骼
         param_pattern = re.compile(r'(\w+)\s*([\d\s.-]+)?')
@@ -741,10 +741,12 @@ class Jigglebone_OT_ApplyFromClipboard(bpy.types.Operator):
             enable_name = 'enable_' + name
             
             # 更新是否灵活和是否有基础弹簧的标志
-            if name in flexible_param_names:
+            if name == 'is_flexible':
                 bone.is_flexible = True
-            if name in base_param_names:
+                continue  # 跳过下面的赋值步骤
+            elif name == 'has_base_spring':
                 bone.has_base_spring = True
+                continue  # 跳过下面的赋值步骤
             
             # 如果有值，则设置之
             if value_str and hasattr(bone, name):

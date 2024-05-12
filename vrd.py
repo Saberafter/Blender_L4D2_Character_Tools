@@ -185,7 +185,7 @@ class L4D2_PT_VRDPanel(bpy.types.Panel):
     bl_idname = "L4D2_PT_vrd_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = '💝'
+    bl_category = '💝LCT'
     
     def draw(self, context):
         layout = self.layout

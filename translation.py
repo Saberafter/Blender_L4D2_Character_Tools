@@ -19,7 +19,7 @@ translation_dict = {
 
     "zh_CN": {
         # Preferences
-        ("*", "View3D > Tool Shelf > 💝"): "3D视图 > 侧栏 > 💝",
+        ("*", "View3D > Tool Shelf > 💝LCT"): "3D视图 > 侧栏 > 💝LCT",
         ("*", "A plugin designed to enhance the efficiency of creating Left 4 Dead 2 Mods."): "这是一个旨在提升求生之路2人物Mod制作效率的插件。",
         
         # 🛠️ General Tools

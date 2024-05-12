@@ -404,7 +404,7 @@ class L4D2_PT_BoneModifyPanel(bpy.types.Panel):
     bl_idname = "L4D2_PT_CharacterToolsPanel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = "💝"
+    bl_category = "💝LCT"
 
     def draw(self, context):
         layout = self.layout
@@ -416,7 +416,7 @@ class VIEW3D_PT_CustomBoneDictManager(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_custom_bone_dict_manager"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = '💝'
+    bl_category = '💝LCT'
     bl_options = {'DEFAULT_CLOSED'} 
 
     def draw(self, context):
