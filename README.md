@@ -1,6 +1,8 @@
 <div class="title" align=center>
     <h1>L4D2 Character Tools</h1>
     <div>一款旨在提升求生之路2人物模组制作效率的Blender插件(*´▽｀)ノノ</div>
+    <br/>
+    <p>
     <img src="https://img.shields.io/github/license/Saberafter/Blender_L4D2_Character_Tools">
     <img src="https://img.shields.io/github/release/Saberafter/Blender_L4D2_Character_Tools">
 </div>
