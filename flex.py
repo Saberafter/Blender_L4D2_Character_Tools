@@ -31,6 +31,7 @@ flexmix_presets_path = os.path.join(preset_dir, 'flexmix_presets.json')
 
 flexmix_dict = {}
 key_notes = {}
+key_mapping = {}
 
 # 存储非零形态键值的全局列表
 current_shape_keys_values = []
@@ -70,60 +71,58 @@ def load_flexmix_dict():
 
 load_flexmix_dict() 
 
-# 将特殊字符转换为下划线
-def format_key_name(key):
-    return re.sub(r'[^\w]+', '_', key)  # 使用正则表达式 '[^\w]+' 来匹配一个或多个非单词字符
-
-# 将格式化后的名称还原为原始名称
-def unformat_key_name(formatted_key, original_keys):
-    formatted_key_pattern = re.sub(r'[_]+', '[_]+', formatted_key)
-    pattern = re.compile(formatted_key_pattern)
-    for original_key in original_keys:
-        if pattern.fullmatch(format_key_name(original_key)):
-            return original_key
-    return None
-
 # 更新键值对数值的函数，并保存到 JSON 文件
-def update_flex_key_value(self, context, group_index, key_name):
+def update_flex_key_value(self, context, enum_index, group_index, key_id):
     selected_key = context.scene.flex_keys_enum
     if selected_key in flexmix_dict:
         flex_list = flexmix_dict[selected_key]
         if group_index < len(flex_list):
-            # 通过给定的键名找到原始键名
-            key_name_original = unformat_key_name(key_name, flex_list[group_index].keys())
-            if key_name_original:
+            # 根据 key_id 获取实际键名
+            key_name = key_mapping.get(key_id)
+            if key_name:
                 # 更新字典中的值
-                flex_list[group_index][key_name_original] = getattr(context.scene, f"flex_key_group_{group_index + 1}_{key_name}")
+                flex_list[group_index][key_name] = getattr(context.scene, f"flex_key_group_{key_id}")
                 # 保存更新后的字典到 JSON 文件中
                 save_flexmix_dict(flexmix_dict, key_notes)
 
 
-# 给动态属性添加更新回调
-def create_or_update_prop(group_index, key, value):
-    prop_name = f"flex_key_group_{group_index}_{format_key_name(key)}"
-    
+# 重新定义属性并附加更新回调
+def create_or_update_prop(enum_index, group_index, key_index, key, value):
+    # 生成唯一标识符
+    key_id = f"{enum_index - 1}_{group_index + 1}_{key_index + 1}"
+    key_mapping[key_id] = key  # 保存到 key_mapping 字典中
+
+    prop_name = f"flex_key_group_{key_id}"
+
     # 定义更新函数
     def update_prop(self, context):
-        update_flex_key_value(self, context, group_index - 1, format_key_name(key))
-    
+        update_flex_key_value(self, context, enum_index, group_index, key_id)
+
     setattr(bpy.types.Scene, prop_name, FloatProperty(name=key, default=value, min=0.0, max=1.0, update=update_prop))
 
-
+# 更新枚举项的回调函数
 def update_enum(self, context):
     flex_key_selected = context.scene.flex_keys_enum
+    # 清空 key_mapping
+    global key_mapping
+    key_mapping = {}
 
     # 删除已有的动态属性
     for flex_key in [f for f in dir(context.scene) if f.startswith("flex_key_group_")]:
         delattr(bpy.types.Scene, flex_key)
-    
-    # 为选中的键的值（这是一个列表）中的每个元素（这是一个字典）创建一个动态属性
-    selected_list = flexmix_dict.get(flex_key_selected)
-    if selected_list is not None:
-        group_index = 1
-        for flex in selected_list:
-            for key, value in flex.items():
-                create_or_update_prop(group_index, key, value)
-            group_index += 1
+
+    if flex_key_selected in flexmix_dict:
+        # 获取枚举项的索引值
+        enum_items = init_enum_items(None, context)
+        selected_index = next(index for index, item in enumerate(enum_items) if item[0] == flex_key_selected) + 1
+
+        selected_list = flexmix_dict.get(flex_key_selected)
+        if selected_list is not None:
+            for list_index, group in enumerate(selected_list):
+                for key_index, (key, value) in enumerate(group.items()):
+                    create_or_update_prop(selected_index, list_index, key_index, key, value)
+
+
 
 # 更新下拉菜单枚举项的函数
 def update_flex_keys_enum_items():
@@ -182,45 +181,45 @@ class L4D2_OT_AddToDict(bpy.types.Operator):
 class L4D2_OT_DeleteFlexKeyPair(bpy.types.Operator):
     bl_idname = "l4d2.delete_flex_key_pair"
     bl_label = "Delete Key-Value Pair"
-    group_index: IntProperty()
-    key_name: StringProperty()
+    group_index: IntProperty()  # 组索引，现在直接从1开始以匹配UI表现
+    key_id: StringProperty()
+    enum_index: IntProperty()  # 枚举索引，从1开始
 
     def execute(self, context):
-        print("正在删除键值对，组索引:", self.group_index, "键名称:", self.key_name)
+        print("正在删除键值对，枚举索引:", self.enum_index, "组索引:", self.group_index, "键ID:", self.key_id)
 
         selected_key = context.scene.flex_keys_enum
         print("选择的键:", selected_key)
 
         if selected_key in flexmix_dict:
-            print("选择的键存在于flexmix_dict中")
-
             flex_list = flexmix_dict[selected_key]
-            print("键值对列表:", flex_list)
-
-            if self.group_index < len(flex_list):
-                print("组索引有效")
-
-                current_group = flex_list[self.group_index]
-                print("当前组:", current_group)
-
-                for key in list(current_group.keys()):
-                    key_name_original = unformat_key_name(self.key_name, current_group.keys())
-                    if key_name_original and key_name_original in current_group:
-                        print("正在删除键:", key_name_original)
-                        del current_group[key_name_original]
-
-                if not current_group:
-                    print("当前组为空，正在删除")
-                    flex_list.pop(self.group_index)
+            # 注意这里 group_index 在删除时要减1，以匹配内部列表的索引基础
+            adjusted_group_index = self.group_index - 1
+            if adjusted_group_index < len(flex_list):
+                current_group = flex_list[adjusted_group_index]
+                key_name = key_mapping.get(self.key_id)
+                if key_name:
+                    # 使用 pop 删除键值对并忽略不存在的键
+                    current_group.pop(key_name, None)
                 
+                # 如果当前组为空，则从列表中删除
+                if not current_group:
+                    flex_list.pop(adjusted_group_index)
+                
+                # 更新保存，触发UI更新
                 save_flexmix_dict(flexmix_dict, key_notes)
-                print("删除后的键值对列表:", flex_list)
+                update_enum(context.scene, context)
+                
+                return {'FINISHED'}
             else:
-                print("组索引无效")
+                self.report({'ERROR'}, "无效的组索引,请检查下拉菜单。")
         else:
-            print("选择的键不存在于字典中")
-        context.scene.flex_keys_enum = selected_key
-        return {'FINISHED'}
+            self.report({'ERROR'}, "选择的键不存在于字典中。")
+
+        return {'CANCELLED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
     
 class L4D2_OT_AddNewFlexKey(bpy.types.Operator):
     """Add a new key to the dictionary"""
@@ -395,25 +394,28 @@ class L4D2_PT_ShapeKeyPanel(bpy.types.Panel):
         box = layout.box()
         box.label(text=note_name)
 
-        
         scene = context.scene
-        last_index = -1
+        last_group_index = None  # 为了区分不同列表的开始，这里指的是（enum_index, group_index）的组合
         box = None
 
-        for attr in sorted((a for a in dir(scene) if a.startswith("flex_key_group_")), key=lambda x: (int(x.split("_")[3]), x)):
-            index = int(attr.split("_")[3])
-            
-            if index != last_index:
-                box = layout.box()
-                last_index = index
+        # attr格式: flex_key_group_{枚举索引}_{组索引}_{键索引}
+        for attr in sorted((a for a in dir(scene) if a.startswith("flex_key_group_")), key=lambda x: (int(x.split("_")[3]), int(x.split("_")[4]), int(x.split("_")[5]))):
+            enum_index, group_index, key_index = map(int, attr.split("_")[3:])
 
+            if (enum_index, group_index) != last_group_index:
+                box = layout.box()
+                last_group_index = (enum_index, group_index)
+                
             if box is not None:
-                row = box.row()  # 添加一行
-                row.prop(scene, attr)  # 属性滑块
-                # 添加一个操作符按钮，用于删除指定键值对
+                row = box.row()
+                row.prop(scene, attr)
+                
+                # 传递 enum_index 和 key_id 给操作符
                 op = row.operator("l4d2.delete_flex_key_pair", text="", icon="X")
-                op.group_index = index - 1
-                op.key_name = "_".join(attr.split("_")[4:])
+                op.enum_index = enum_index
+                op.group_index = group_index  # 直接添加组索引，不做调整
+                op.key_id = "_".join(attr.split("_")[3:])
+
 
 # UI列表项类定义
 class FLEXMIX_UL_List(bpy.types.UIList):
