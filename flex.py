@@ -177,6 +177,7 @@ class L4D2_OT_AddToDict(bpy.types.Operator):
             flexmix_dict[selected_key].append(current_shape_dict)
             save_flexmix_dict(flexmix_dict, key_notes)  # 保存字典到文件
             context.scene.flex_keys_enum = selected_key  # 触发下拉列表的 update 函数，以刷新当前显示的属性
+            self.report({'INFO'}, f"形态键添加: '{selected_key}' ")
         return {'FINISHED'}
 
 class L4D2_OT_DeleteFlexKeyPair(bpy.types.Operator):
@@ -210,7 +211,7 @@ class L4D2_OT_DeleteFlexKeyPair(bpy.types.Operator):
                 # 更新保存，触发UI更新
                 save_flexmix_dict(flexmix_dict, key_notes)
                 update_enum(context.scene, context)
-                
+                self.report({'INFO'}, f"形态键 '{selected_key}' 数据已删除")
                 return {'FINISHED'}
             else:
                 self.report({'ERROR'}, "无效的组索引,请检查下拉菜单。")
