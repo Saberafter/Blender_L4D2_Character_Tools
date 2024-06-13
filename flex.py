@@ -159,6 +159,7 @@ class L4D2_OT_StoreShapeKeys(bpy.types.Operator):
                 for shape_key in obj.data.shape_keys.key_blocks
                 if shape_key.value != 0 and shape_key != obj.data.shape_keys.reference_key
             ]
+            self.report({'INFO'}, f"非零形态键记录: '{current_shape_keys_values}' ")
             print("非零形态键记录: ", current_shape_keys_values)  # 用于调试
 
         return {'FINISHED'}
@@ -695,8 +696,16 @@ class L4D2_OT_CreateSelectedKey(bpy.types.Operator):
 
     def execute(self, context):
         obj = context.object
-        shape_keys = obj.data.shape_keys
 
+        # 检查是否有模型被选中
+        if obj is None:
+            self.report({'ERROR'}, "需要选中模型再进行操作。")
+            return {'CANCELLED'}
+        # 检查选中的对象是否是网格对象
+        if obj.type != 'MESH':
+            self.report({'ERROR'}, "选中的对象不是网格模型。请选中一个网格模型再进行操作。")
+            return {'CANCELLED'}
+        shape_keys = obj.data.shape_keys
         if not shape_keys:
             self.report({'ERROR'}, "对象上没有形态键数据。")
             return {'CANCELLED'}
@@ -779,7 +788,17 @@ class L4D2_OT_AllCreate(bpy.types.Operator):
     def execute(self, context):
         wm = context.window_manager
         obj = context.object
-        shape_keys = obj.data.shape_keys  
+        # 检查是否有模型被选中
+        if obj is None:
+            self.report({'ERROR'}, "需要选中模型再进行操作。")
+            return {'CANCELLED'}
+
+        # 检查选中的对象是否是网格对象
+        if obj.type != 'MESH':
+            self.report({'ERROR'}, "选中的对象不是网格模型。请选中一个网格模型再进行操作。")
+            return {'CANCELLED'}
+
+        shape_keys = obj.data.shape_keys
 
         if not shape_keys:
             self.report({'ERROR'}, "对象上没有形态键数据。")
@@ -810,15 +829,22 @@ class L4D2_OT_SortShapeKeys(bpy.types.Operator):
     bl_description = 'Automatically delete useless shape keys and organize the shape key list\nBe sure to backup'
 
     def execute(self, context):
+        obj = context.object
+        # 检查选中的对象是否是网格对象
+        if obj.type != 'MESH':
+            self.report({'ERROR'}, "选中的对象不是网格模型。请选中一个网格模型再进行操作。")
+            return {'CANCELLED'}
         # 检查基础形态键的名称并适应不同语言环境
         def check_basis_name():
-            return '基型' if '基型' in shape_keys.keys() else 'Basis'
-
+            basis_name = '基型' if '基型' in shape_keys.keys() else 'Basis'
+            print(f"检测到基础形态键的名称为: {basis_name}")  # 打印基础形态键名称
+            return basis_name
+        
         # 如果场景中包含了 created_keys 属性，保存创建的键名
         if "created_keys" in context.scene:
             created_keys = set(context.scene["created_keys"])
         else:
-            self.report({'WARNING'}, "没有找到创建键的跟踪信息。")
+            self.report({'ERROR'}, "没有找到跟踪信息，请先使用插件创建形态键。")
             return {'CANCELLED'}
 
         # 退出形态键锁定/编辑模式
@@ -835,11 +861,16 @@ class L4D2_OT_SortShapeKeys(bpy.types.Operator):
             bpy.context.object.active_shape_key_index = basis_index
             bpy.ops.object.shape_key_move(type='TOP')
 
+        # 初始化删除计数器
+        deleted_keys_count = 0
+        
         # 遍历形态键集合，删除不是由特定操作创建的形态键
         for key in shape_keys[:]:  # 复制一份形态键列表用于遍历
             if key.name not in created_keys and key.name != basis_name:  # 如果键名不在创建列表中，并且不是基础形状键
                 bpy.context.object.active_shape_key_index = shape_keys.keys().index(key.name)  # 设为活动形态键
                 bpy.ops.object.shape_key_remove(all=False)  # 移除当前形态键
+                deleted_keys_count += 1  # 删除计数器增加         
+        self.report({'INFO'}, f"已删除 {deleted_keys_count} 个多余形态键。")
 
         return {'FINISHED'}
 
