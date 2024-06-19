@@ -28,9 +28,11 @@ bl_info = {
 
 import bpy
 from . import vrd
+from . import weights
 from . import jigglebone
 from . import flex
 from . import bone_modify
+from . import weights
 from .resources import bone_dict
 from bpy.app import translations
 
@@ -72,7 +74,9 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
 
         if context.scene.bl_is_detailed:
             bone_modify.VIEW3D_PT_CustomBoneDictManager.draw(self, context)
-
+        
+        weights.L4D2_PT_WeightsPanel.draw(self, context)
+        
         row = layout.row()
         row.menu("L4D2_MT_select_bones_menu", icon="DOWNARROW_HLT")
         
@@ -86,17 +90,7 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
             row = layout.row()
             row.operator("select.by_pattern")
             
-        row = layout.row()
-        split = layout.split(factor=0.25)
-        col_left = split.column()
-        col_right = split.column()
-        # 在左列添加标签
-        col_left.scale_y = 2
-        col_left.operator("l4d2.merge_vertex_groups")
-        if context.active_object is not None:
-            # 创建两个下拉框，用于选择要合并的顶点组
-            col_right.prop_search(context.scene, "vertex_group_name_1", context.active_object, "vertex_groups", text="", icon="RADIOBUT_ON")
-            col_right.prop_search(context.scene, "vertex_group_name_2", context.active_object, "vertex_groups", text="", icon="RADIOBUT_OFF")
+
 
 class L4D2_PT_VRDTools(bpy.types.Panel):
     bl_label = "🕹️ VRD Tools"
@@ -240,36 +234,6 @@ class L4D2_OT_select_pattern(bpy.types.Operator):
         bpy.ops.object.select_pattern(pattern=context.object.select_pattern)
         return {'FINISHED'}
 
-# 定义操作类
-class L4D2_OT_MergeVertexGroups(bpy.types.Operator):
-    bl_idname = "l4d2.merge_vertex_groups"
-    bl_label = "Merge Vertex Group"
-    bl_description = "Merge the weight of the vertex group in the second column into the vertex group in the first column\nsuitable for special cases where there is no bone, but the vertex group has weight"
-    def execute(self, context):
-        # 获取当前选中的物体
-        obj = context.active_object
-
-        # 获取顶点组
-        vertex_group_1 = obj.vertex_groups[context.scene.vertex_group_name_1]
-        vertex_group_2 = obj.vertex_groups[context.scene.vertex_group_name_2]
-
-        # 遍历物体的顶点
-        for vertex in obj.data.vertices:
-            # 获取顶点在顶点组2中的权重
-            try:
-                weight_2 = vertex_group_2.weight(vertex.index)
-            except RuntimeError:
-                weight_2 = 0.0
-
-            # 如果顶点在顶点组2中有权重，则将权重添加到顶点组1
-            if weight_2 > 0.0:
-                vertex_group_1.add([vertex.index], weight_2, 'ADD')
-
-        # 删除顶点组2
-        obj.vertex_groups.remove(vertex_group_2)
-
-        return {'FINISHED'}
-
 class L4D2_MT_SelectBonesMenu(bpy.types.Menu):
     bl_idname = "L4D2_MT_select_bones_menu"
     bl_label = "Bone Quick Select"
@@ -291,7 +255,6 @@ classes = [
     L4D2_PT_FlexTools,
     L4D2_OT_RemoveConstraint,
     L4D2_OT_SelectBones,
-    L4D2_OT_MergeVertexGroups,
     L4D2_MT_SelectBonesMenu,
     L4D2_OT_select_pattern,
 ]
@@ -308,6 +271,7 @@ def register():
     vrd.register()
     jigglebone.register()
     flex.register()
+    weights.register()
     from .translation import translation_dict
     translations.register(bl_info['name'], translation_dict)
     bpy.types.Scene.Valve_Armature = bpy.props.PointerProperty(
@@ -330,3 +294,4 @@ def unregister():
     bone_modify.unregister()
     vrd.unregister()
     flex.unregister()
+    weights.unregister()

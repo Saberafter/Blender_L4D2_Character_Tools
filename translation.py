@@ -70,10 +70,24 @@ translation_dict = {
         ("Operator", "Select by pattern"): "按名称选择",
         ("*", "By default, turn off case distinction and turn on merge selection"): "默认关闭大小写区分和打开并入选择",
 
-        ("Operator", "Merge Vertex Group"): "合并顶点组",
-        ("*", "Merge the weight of the vertex group in the second column into the vertex group in the first column\nsuitable for special cases where there is no bone, but the vertex group has weight"): "把第二栏的顶点组权重合并进第一栏的顶点组\n适合没有骨骼但是顶点组有权重的特殊情况",
+        ("*", "Vertex Group Editing"): "顶点组编辑",
 
-        # 🕹️ VRD Tools
+
+        ("*", ""): "把第二栏的顶点组权重合并进第一栏的顶点组\n适合没有骨骼但是顶点组有权重的特殊情况",
+
+        ("Operator", "Add Vertex Group"): "添加顶点组",
+        ("*", "Add a vertex group field to select the vertex group to be processed by the current model"): "增加一个顶点组栏位，用来选择当前模型需要处理的顶点组",
+
+        ("Operator", "Remove Vertex Group"): "删除顶点组",
+        ("*", "Remove this vertex group field"): "删除这个顶点组栏位",
+
+        ("Operator", "Process Vertex Group"): "处理顶点组",
+        ("*", "The following functions are performed only on the vertex groups within the columns created with the + button:\nMerge vertex groups: Merge the weights of the vertex groups after the first column into the first column vertex group and delete these vertex groups(careful).\nEven weight: Evenly distribute the weights of the first column vertex group to the other column vertex groups.\nBisect weight: Using the X-pos of the vertices in the first column vertex group as a reference, divide the weights to the left and right. Assign the weights of the left half to the vertex group in the second column, and the weights of the right half to the vertex group in the third column"): "以下功能仅针对使用+号创建的栏内顶点组进行操作\n合并顶点组：把第一栏以后的顶点组权重合并到第一栏顶点组中，并删除这些顶点组(谨慎操作)\n均匀权重：把第一栏顶点组的权重均匀分配给其他栏顶点组\n二分权重：以第一栏顶点组内顶点X坐标为参照，左右划分权重，左半边权重划给第二栏顶点组，右半边权重划给第三栏顶点组",
+        ("Operator", "Merge vertex groups"): "合并顶点组",
+        ("Operator", "Even weight"): "均匀权重",
+        ("Operator", "Bisect weight"): "二分权重",
+        
+
         ("*", "VRD Action Management:"): "VRD动作管理",
         ("Operator", "Add New Project"): "添加VRD动作项目",
         ("*", "Add new project to the project list"): "添加新的项目到项目列表",
