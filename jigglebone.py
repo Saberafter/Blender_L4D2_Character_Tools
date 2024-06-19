@@ -323,7 +323,7 @@ class JigglebonePanel(bpy.types.Panel):
         box_right.alignment = 'LEFT'
         #box_right.operator('jigglebone.normal_rotate', text='法向旋转', icon='DRIVER_ROTATIONAL_DIFFERENCE')
         # 创建UIlist列表，展示Jigglebone的集合
-        left.template_list("JIGGLEBONE_UL_List", "", scene, "jigglebone_list", scene, "jigglebone_list_index", rows=8)
+        left.template_list("JIGGLEBONE_UL_List", "", scene, "jigglebone_list", scene, "jigglebone_list_index", rows=10)
         # 添加预设按钮
         box_right = left.box().row(align=True) 
         if jigglebone_list:
@@ -336,7 +336,7 @@ class JigglebonePanel(bpy.types.Panel):
         right = row.column(align=True)
         # 创建添加，删除，清空，上移，下移按钮
         right.scale_x = 1.2  # 保持按钮大小不变
-        right.scale_y = 1.35
+        right.scale_y = 1.33
         right.operator('jigglebone.add_bone', text='', icon='ADD')
         right.operator('jigglebone.remove_bone', text='', icon='REMOVE')
         right.operator('jigglebone.clear_bone', text='', icon='TRASH') 
@@ -346,6 +346,8 @@ class JigglebonePanel(bpy.types.Panel):
         right.prop(context.scene, "Jigglebone_is_detailed", text="", icon="CURRENT_FILE" if context.scene.Jigglebone_is_detailed else "ASSET_MANAGER")
         right.operator('jigglebone.set_angle', text="", icon='MODIFIER')
         right.operator('jigglebone.apply_from_clipboard', text="", icon='PASTEFLIPDOWN')
+        right.operator('jigglebone.import_all_from_clipboard', text="", icon='PASTEFLIPDOWN')
+        
         row = layout.row()
         row.prop(context.scene, 'jigglebone_export_path')
         row = layout.row()
@@ -605,7 +607,7 @@ class Jigglebone_OT_AddBone(bpy.types.Operator):
 class Jigglebone_OT_RemoveBone(bpy.types.Operator):
     bl_idname = "jigglebone.remove_bone"
     bl_label = "Remove selected bones from the list"
-    bl_description = "Priority to delete the checked items, otherwise delete the highlighted items"
+    bl_description = "Priority: delete the selected bones in the 3D view first;\nif there are no selected bones, delete the checked items;\nif there are no checked items, delete the highlighted items"
 
     def execute(self, context):
         scene = context.scene
@@ -716,8 +718,9 @@ class Jigglebone_OT_MoveDownBone(bpy.types.Operator):
 
 # 操作符：从剪贴板应用设置
 class Jigglebone_OT_ApplyFromClipboard(bpy.types.Operator):
+    """Apply a set of floating bone text from the clipboard to the current selection"""
     bl_idname = "jigglebone.apply_from_clipboard"
-    bl_label = "Apply jitter parameters from clipboard"
+    bl_label = "Apply jitter parameters from the clipboard (individually)"
     bl_options = {'REGISTER', 'UNDO'}
 
     def apply_settings_to_bone(self, bone, clipboard):
@@ -784,6 +787,71 @@ class Jigglebone_OT_ApplyFromClipboard(bpy.types.Operator):
         else:
             self.report({'ERROR'}, "没有选中的骨骼")
             return {'CANCELLED'}
+
+class Jigglebone_OT_ImportAllFromClipboard(bpy.types.Operator):
+    """Import all floating bone text from the clipboard to the current list"""
+    bl_idname = "jigglebone.import_all_from_clipboard"
+    bl_label = "Import jitter parameters from the clipboard (All)"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        clipboard = bpy.context.window_manager.clipboard
+        scene = context.scene
+        
+        # 正则表达式匹配单个飘骨块
+        jigglebone_pattern = re.compile(r'\$jigglebone\s+"(.+?)"\s*\{(.+?)\}', re.DOTALL)
+        matches = jigglebone_pattern.finditer(clipboard)
+        
+        # 遍历所有匹配到的飘骨块
+        for match in matches:
+            bone_name = match.group(1)
+            bone_params = match.group(2)
+            
+            # 创建新飘骨对象并添加到jigglebone_list
+            new_bone = scene.jigglebone_list.add()
+            new_bone.name = bone_name
+            
+            # 调用apply_settings_to_bone方法应用参数
+            self.apply_settings_to_bone(new_bone, bone_params)
+        
+        # 更新UI
+        context.area.tag_redraw()
+        return {'FINISHED'}
+
+    def apply_settings_to_bone(self, bone, params):
+        # 先关闭所有参数的开关
+        bone.is_flexible = False
+        bone.has_base_spring = False
+        for param in flexible_params + base_params:
+            enable_name = 'enable_' + param[0]
+            if hasattr(bone, enable_name):
+                setattr(bone, enable_name, False)
+        
+        # 使用正则表达式匹配参数，并应用到骨骼
+        param_pattern = re.compile(r'(\w+)\s*([\d\s.-]+)?')
+        for match in param_pattern.finditer(params):
+            name = match.group(1)
+            value_str = match.group(2)
+            enable_name = 'enable_' + name
+            
+            # 更新是否灵活和是否有基础弹簧的标志
+            if name == 'is_flexible':
+                bone.is_flexible = True
+                continue  # 跳过下面的赋值步骤
+            elif name == 'has_base_spring':
+                bone.has_base_spring = True
+                continue  # 跳过下面的赋值步骤
+            
+            # 如果有值，则设置之
+            if value_str and hasattr(bone, name):
+                value_str = value_str.strip()  # 删除尾随空格
+                value = [float(v) for v in value_str.split()] if ' ' in value_str else float(value_str)
+                setattr(bone, name, value)
+            
+            # 设置参数对应的开关
+            if hasattr(bone, enable_name):
+                setattr(bone, enable_name, True)
+
 
 # 导出文件
 class Jigglebone_OT_ExportJigglebone(bpy.types.Operator):
@@ -1008,6 +1076,7 @@ classes = [
     Jigglebone_OT_ApplyFromClipboard,
     PresetPropertyGroup,
     JIGGLEBONE_OT_UpdateSelection,
+    Jigglebone_OT_ImportAllFromClipboard,
 ]
 
 def register():

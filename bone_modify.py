@@ -274,6 +274,13 @@ class L4D2_OT_RiggingOperator(bpy.types.Operator):
 
                 # 添加当前骨骼到集合中，避免未来重复添加约束
                 added_constraints.add(bone_A_name)
+                
+        # 取消A骨架中名为 ValveBiped.Bip01_Pelvis 的骨骼的复制位置约束中的Z轴约束
+        pelvis_bone_A = armature_A.pose.bones.get('ValveBiped.Bip01_Pelvis')
+        if pelvis_bone_A:
+            for constraint in pelvis_bone_A.constraints:
+                if constraint.type == 'COPY_LOCATION' and constraint.target == armature_B:
+                    constraint.use_z = False
 
         # 骨骼约束添加完成
         return {'FINISHED'}
@@ -367,7 +374,7 @@ class L4D2_OT_GraftingOperator(bpy.types.Operator):
 class L4D2_OT_RenameBonesOperator(bpy.types.Operator):
     bl_idname = "l4d2.rename_bones_operator"
     bl_label = "Rename Bone"
-    bl_description = "Rename Bones According to Bone Mapping"
+    bl_description = "Rename custom bone names to Valve bone names based on bone mapping relationships"
 
     def execute(self, context):
         # 加载全局的骨骼名字典

@@ -28,11 +28,38 @@ bl_info = {
 
 import bpy
 from . import vrd
+from . import weights
 from . import jigglebone
 from . import flex
 from . import bone_modify
+from . import weights
 from .resources import bone_dict
-from bpy.app import translations
+
+
+class TranslationHelper():
+    def __init__(self, name: str, data: dict, lang='zh_CN'):
+        self.name = name
+        self.translations_dict = dict()
+
+        for src, src_trans in data.items():
+            key = ("Operator", src)
+            self.translations_dict.setdefault(lang, {})[key] = src_trans
+            key = ("*", src)
+            self.translations_dict.setdefault(lang, {})[key] = src_trans
+
+    def register(self):
+        try:
+            bpy.app.translations.register(self.name, self.translations_dict)
+        except(ValueError):
+            pass
+
+    def unregister(self):
+        bpy.app.translations.unregister(self.name)
+
+from . import translation
+
+lct_zh_CN = TranslationHelper('lct_zh_CN', translation.data)
+lct_zh_HANS = TranslationHelper('lct_zh_HANS', translation.data, lang='zh_HANS')
 
 class L4D2_PT_GeneralTools(bpy.types.Panel):
     bl_label = "🛠️ General Tools"
@@ -68,11 +95,13 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
         row = layout.row()
         row.operator("l4d2.unbind_keep_shape", icon="CONSTRAINT_BONE")
 
-        layout.prop(context.scene, "bl_is_detailed", text="Bone Mapping Management", icon="TRIA_DOWN" if context.scene.bl_is_detailed else "TRIA_RIGHT")
+        layout.prop(context.scene, "bone_mapping_management", text="Bone Mapping Management", icon="TRIA_DOWN" if context.scene.bone_mapping_management else "TRIA_RIGHT")
 
-        if context.scene.bl_is_detailed:
+        if context.scene.bone_mapping_management:
             bone_modify.VIEW3D_PT_CustomBoneDictManager.draw(self, context)
-
+        
+        weights.L4D2_PT_WeightsPanel.draw(self, context)
+        
         row = layout.row()
         row.menu("L4D2_MT_select_bones_menu", icon="DOWNARROW_HLT")
         
@@ -86,17 +115,7 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
             row = layout.row()
             row.operator("select.by_pattern")
             
-        row = layout.row()
-        split = layout.split(factor=0.25)
-        col_left = split.column()
-        col_right = split.column()
-        # 在左列添加标签
-        col_left.scale_y = 2
-        col_left.operator("l4d2.merge_vertex_groups")
-        if context.active_object is not None:
-            # 创建两个下拉框，用于选择要合并的顶点组
-            col_right.prop_search(context.scene, "vertex_group_name_1", context.active_object, "vertex_groups", text="", icon="RADIOBUT_ON")
-            col_right.prop_search(context.scene, "vertex_group_name_2", context.active_object, "vertex_groups", text="", icon="RADIOBUT_OFF")
+
 
 class L4D2_PT_VRDTools(bpy.types.Panel):
     bl_label = "🕹️ VRD Tools"
@@ -240,36 +259,6 @@ class L4D2_OT_select_pattern(bpy.types.Operator):
         bpy.ops.object.select_pattern(pattern=context.object.select_pattern)
         return {'FINISHED'}
 
-# 定义操作类
-class L4D2_OT_MergeVertexGroups(bpy.types.Operator):
-    bl_idname = "l4d2.merge_vertex_groups"
-    bl_label = "Merge Vertex Group"
-    bl_description = "Merge the weight of the vertex group in the second column into the vertex group in the first column\nsuitable for special cases where there is no bone, but the vertex group has weight"
-    def execute(self, context):
-        # 获取当前选中的物体
-        obj = context.active_object
-
-        # 获取顶点组
-        vertex_group_1 = obj.vertex_groups[context.scene.vertex_group_name_1]
-        vertex_group_2 = obj.vertex_groups[context.scene.vertex_group_name_2]
-
-        # 遍历物体的顶点
-        for vertex in obj.data.vertices:
-            # 获取顶点在顶点组2中的权重
-            try:
-                weight_2 = vertex_group_2.weight(vertex.index)
-            except RuntimeError:
-                weight_2 = 0.0
-
-            # 如果顶点在顶点组2中有权重，则将权重添加到顶点组1
-            if weight_2 > 0.0:
-                vertex_group_1.add([vertex.index], weight_2, 'ADD')
-
-        # 删除顶点组2
-        obj.vertex_groups.remove(vertex_group_2)
-
-        return {'FINISHED'}
-
 class L4D2_MT_SelectBonesMenu(bpy.types.Menu):
     bl_idname = "L4D2_MT_select_bones_menu"
     bl_label = "Bone Quick Select"
@@ -291,7 +280,6 @@ classes = [
     L4D2_PT_FlexTools,
     L4D2_OT_RemoveConstraint,
     L4D2_OT_SelectBones,
-    L4D2_OT_MergeVertexGroups,
     L4D2_MT_SelectBonesMenu,
     L4D2_OT_select_pattern,
 ]
@@ -303,13 +291,17 @@ def register():
     bpy.types.Scene.vertex_group_name_1 = bpy.props.StringProperty(name="Vertex Group 1")
     bpy.types.Scene.vertex_group_name_2 = bpy.props.StringProperty(name="Vertex Group 2")
     bpy.types.Object.select_pattern = bpy.props.StringProperty(default="*hair*")
-    bpy.types.Scene.bl_is_detailed = bpy.props.BoolProperty(name="详细信息", default=False)
+    bpy.types.Scene.bone_mapping_management = bpy.props.BoolProperty(
+        name="Bone Mapping Management",
+        description="Bone Mapping Management",
+        default=False
+    )
     bone_modify.register()
     vrd.register()
     jigglebone.register()
     flex.register()
-    from .translation import translation_dict
-    translations.register(bl_info['name'], translation_dict)
+    weights.register()
+
     bpy.types.Scene.Valve_Armature = bpy.props.PointerProperty(
         name="Valve Armature",
         type=bpy.types.Object,
@@ -320,8 +312,16 @@ def register():
         type=bpy.types.Object,
         poll=lambda self, obj: obj.type == 'ARMATURE'
     )
+
+    # 翻译
+    if bpy.app.version < (4, 0, 0):
+        lct_zh_CN.register()
+    else:
+        lct_zh_CN.register()
+        lct_zh_HANS.register()
+
 def unregister():
-    translations.unregister(bl_info['name'])
+
     for cls in classes:
         bpy.utils.unregister_class(cls)
     del bpy.types.Scene.vertex_group_name_1
@@ -330,3 +330,10 @@ def unregister():
     bone_modify.unregister()
     vrd.unregister()
     flex.unregister()
+    weights.unregister()
+    # 翻译
+    if bpy.app.version < (4, 0, 0):
+        lct_zh_CN.unregister()
+    else:
+        lct_zh_CN.unregister()
+        lct_zh_HANS.unregister()
