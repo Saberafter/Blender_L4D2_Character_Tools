@@ -301,12 +301,6 @@ def register():
     jigglebone.register()
     flex.register()
     weights.register()
-<<<<<<< HEAD
-
-=======
-    from .translation import translation_dict
-    translations.register(bl_info['name'], translation_dict)
->>>>>>> 10981a70a90fd60c3b37a4cb29ddded12650e790
     bpy.types.Scene.Valve_Armature = bpy.props.PointerProperty(
         name="Valve Armature",
         type=bpy.types.Object,
@@ -336,12 +330,9 @@ def unregister():
     vrd.unregister()
     flex.unregister()
     weights.unregister()
-<<<<<<< HEAD
     # 翻译
     if bpy.app.version < (4, 0, 0):
         lct_zh_CN.unregister()
     else:
         lct_zh_CN.unregister()
         lct_zh_HANS.unregister()
-=======
->>>>>>> 10981a70a90fd60c3b37a4cb29ddded12650e790
