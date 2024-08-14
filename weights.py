@@ -37,32 +37,19 @@ class L4D2_PT_WeightsPanel(bpy.types.Panel):
                 remove_op.index = idx
 
 class L4D2_OT_AddVertexGroup(bpy.types.Operator):
-<<<<<<< HEAD
     bl_idname = "scene.add_vertex_group"
     bl_label = "Add Vertex Group"
     bl_description = "Add a vertex group field to select the vertex group to be processed by the current model"
-=======
-    """Add a vertex group field to select the vertex group to be processed by the current model"""
-    bl_idname = "scene.add_vertex_group"
-    bl_label = "Add Vertex Group"
->>>>>>> 10981a70a90fd60c3b37a4cb29ddded12650e790
 
     def execute(self, context):
         context.scene.vertex_group_names.add()
         return {'FINISHED'}
 
 class L4D2_OT_RemoveVertexGroup(bpy.types.Operator):
-<<<<<<< HEAD
     bl_idname = "scene.remove_vertex_group"
     bl_label = "Remove Vertex Group"
     bl_description = "Remove this vertex group field"
 
-=======
-    """Remove this vertex group field"""
-    bl_idname = "scene.remove_vertex_group"
-    bl_label = "Remove Vertex Group"
-    
->>>>>>> 10981a70a90fd60c3b37a4cb29ddded12650e790
     index: bpy.props.IntProperty()
 
     def execute(self, context):
@@ -70,15 +57,9 @@ class L4D2_OT_RemoveVertexGroup(bpy.types.Operator):
         return {'FINISHED'}
 
 class L4D2_OT_ProcessVertexGroups(bpy.types.Operator):
-<<<<<<< HEAD
     bl_idname = "l4d2.process_vertex_groups"
     bl_label = "Process Vertex Group"
     bl_description = "The following functions are performed only on the vertex groups within the columns created with the + button:\nMerge vertex groups: Merge the weights of the vertex groups after the first column into the first column vertex group and delete these vertex groups(careful).\nEven weight: Evenly distribute the weights of the first column vertex group to the other column vertex groups.\nBisect weight: Using the X-pos of the vertices in the first column vertex group as a reference, divide the weights to the left and right. Assign the weights of the left half to the vertex group in the second column, and the weights of the right half to the vertex group in the third column"
-=======
-    """The following functions are performed only on the vertex groups within the columns created with the + button:\nMerge vertex groups: Merge the weights of the vertex groups after the first column into the first column vertex group and delete these vertex groups(careful).\nEven weight: Evenly distribute the weights of the first column vertex group to the other column vertex groups.\nBisect weight: Using the X-pos of the vertices in the first column vertex group as a reference, divide the weights to the left and right. Assign the weights of the left half to the vertex group in the second column, and the weights of the right half to the vertex group in the third column"""
-    bl_idname = "l4d2.process_vertex_groups"
-    bl_label = "Process Vertex Group"
->>>>>>> 10981a70a90fd60c3b37a4cb29ddded12650e790
 
     operation: bpy.props.StringProperty()  # 添加操作类型属性
 
@@ -192,11 +173,7 @@ def register():
     bpy.types.Scene.vertex_group_names = CollectionProperty(type=VertexGroupItem)
     bpy.types.Scene.bl_VGE = bpy.props.BoolProperty(
         name="Vertex Group Editing",
-<<<<<<< HEAD
         description="Vertex Group Editing",
-=======
-        description="Toggle the visibility of detailed settings",
->>>>>>> 10981a70a90fd60c3b37a4cb29ddded12650e790
         default=False
     )
 def unregister():
