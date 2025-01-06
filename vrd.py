@@ -145,16 +145,21 @@ class ProjectItem(bpy.types.PropertyGroup):
     )
 
 class CXBONE_UL_List(bpy.types.UIList):
-
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            # 创建一个包含序号和骨骼名称的行
             row = layout.row(align=True)
-            row.scale_x = 0.1
-            row.label(text=str(index+1))  # 新增的代码: 在列表每一项前面加一个数字顺序
-            row.scale_x = 0.9
+            # 序号显示区域，使用更小的比例
+            row.scale_x = 0.1  # 减小序号区域的宽度
+            row.label(text=f"{index + 1}")
+            row.scale_x = 1.0  # 恢复正常比例
+            
+            # 使用split来分配剩余空间
             split = layout.split(factor=0.7)
-            split.prop(item, "name", text="", emboss=False, translate=False, icon='BONE_DATA')  
-            split.prop(item, "angle", text="")  
+            # 骨骼名称
+            split.prop(item, "name", text="", emboss=False, translate=False, icon='BONE_DATA')
+            # 角度值
+            split.prop(item, "angle", text="")
         elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
             layout.prop(item, "name", text="")

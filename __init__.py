@@ -17,7 +17,7 @@
 bl_info = {
     "name": "💝L4D2 Character Tools",
     "author": "Merami",
-    "version": (1, 0 , 5),
+    "version": (1, 0, 6),
     "blender": (2, 80, 0),
     "location": "View3D > Tool Shelf > 💝LCT",
     "description": "A plugin designed to enhance the efficiency of creating Left 4 Dead 2 character mods.",
@@ -34,7 +34,149 @@ from . import flex
 from . import bone_modify
 from . import weights
 from .resources import bone_dict
+import requests
+import json
+from threading import Thread
+from bpy.app.translations import pgettext_iface as _
 
+class UpdateChecker:
+    def __init__(self):
+        self._has_update = False
+        self._latest_version = None
+        self._download_url = None
+        self._release_notes = None  # 添加发布说明
+        
+    def check_for_update(self):
+        try:
+            api_url = "https://api.github.com/repos/Saberafter/Blender_L4D2_Character_Tools/releases/latest"
+            response = requests.get(api_url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                latest_version = tuple(map(int, data['tag_name'].replace('v', '').split('.')))
+                current_version = bl_info['version']
+                
+                self._latest_version = latest_version
+                self._download_url = data['html_url']
+                self._release_notes = data['body']  # 获取发布说明
+                self._has_update = latest_version > current_version
+                
+        except Exception as e:
+            print(f"Update check failed: {str(e)}")
+    
+    @property
+    def release_notes(self):
+        return self._release_notes
+            
+    @property
+    def has_update(self):
+        return self._has_update
+        
+    @property
+    def latest_version(self):
+        return self._latest_version
+        
+    @property
+    def download_url(self):
+        return self._download_url
+
+# 创建更新检查器实例
+update_checker = UpdateChecker()
+
+def parse_markdown(text):
+    """简单的 Markdown 解析"""
+    if not text:
+        return []
+    
+    lines = []
+    for line in text.split('\n'):
+        # 移除 Markdown 标记符号但保留缩进结构
+        line = line.strip()
+        # 处理标题
+        if line.startswith('# '):
+            line = line[2:]
+        elif line.startswith('## '):
+            line = '  ' + line[3:]
+        elif line.startswith('### '):
+            line = '    ' + line[4:]
+        # 处理列表
+        elif line.startswith('- '):
+            line = '• ' + line[2:]
+        elif line.startswith('* '):
+            line = '• ' + line[2:]
+        elif line.startswith('1. '):
+            line = line[3:]  # 保留数字列表的数字
+            
+        if line:  # 只添加非空行
+            lines.append(line)
+    
+    return lines
+
+class L4D2_OT_CheckUpdate(bpy.types.Operator):
+    bl_idname = "l4d2.check_update"
+    bl_label = "Check for updates"
+    bl_description = "Check if there is a new version of the plugin"
+    
+    _timer = None
+    _checking = False
+    
+    def modal(self, context, event):
+        if event.type == 'TIMER':
+            if not self._checking:
+                self._checking = True
+                update_checker.check_for_update()
+                
+                def draw_popup(self, context):
+                    layout = self.layout
+                    layout.scale_y = 0.7
+                    
+                    if update_checker.has_update:
+                        current_ver = '.'.join(map(str, bl_info['version']))
+                        new_ver = '.'.join(map(str, update_checker.latest_version))
+                        
+                        col = layout.column(align=True)
+                        col.label(text=_("Update Available!"), icon='INFO')
+                        col.label(text=_("Current version:") + f" v{current_ver}")
+                        col.label(text=_("Latest version:") + f" v{new_ver}")
+                        
+                        layout.separator(factor=0.5)
+                        col = layout.column(align=True)
+                        col.label(text=_("Update Notes:"), icon='TEXT')
+                        
+                        release_notes = update_checker.release_notes or "No update notes available"
+                        parsed_notes = parse_markdown(release_notes)
+                        
+                        for line in parsed_notes:
+                            col.label(text=line)
+                        
+                        layout.separator(factor=0.5)
+                        row = layout.row()
+                        row.scale_y = 1.2
+                        props = row.operator("wm.url_open", text=_("Go to download page"), icon='URL')
+                        props.url = update_checker.download_url
+                    else:
+                        col = layout.column(align=True)
+                        col.label(text=_("You are using the latest version"), icon='INFO')
+                        col.label(text=_("Current version:") + f" v{'.'.join(map(str, bl_info['version']))}")
+
+                bpy.context.window_manager.popup_menu(draw_popup, 
+                    title=_("Update Available!") if update_checker.has_update else _("Version Check"))
+                
+                if self._timer:
+                    context.window_manager.event_timer_remove(self._timer)
+                return {'FINISHED'}
+                
+        return {'PASS_THROUGH'}
+    
+    def execute(self, context):
+        if not self._timer:
+            self._timer = context.window_manager.event_timer_add(0.1, window=context.window)
+            context.window_manager.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+        return {'CANCELLED'}
+    
+    def cancel(self, context):
+        if self._timer:
+            context.window_manager.event_timer_remove(self._timer)
 
 class TranslationHelper():
     def __init__(self, name: str, data: dict, lang='zh_CN'):
@@ -70,6 +212,13 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        # 添加更新检查按钮
+        row = layout.row()
+        row.operator("l4d2.check_update", icon="FILE_REFRESH")
+        if update_checker.has_update:
+            row = layout.row()
+            row.label(text=_("New version available:") + f" {'.'.join(map(str, update_checker.latest_version))}")
+            row.operator("wm.url_open", text=_("Download"), icon="URL").url = update_checker.download_url
         scene = context.scene
         # 使用 split 布局类型调整左右列的宽度比例
         split = layout.split(factor=0.25)
@@ -282,6 +431,7 @@ classes = [
     L4D2_OT_SelectBones,
     L4D2_MT_SelectBonesMenu,
     L4D2_OT_select_pattern,
+    L4D2_OT_CheckUpdate,
 ]
 
 
@@ -330,6 +480,7 @@ def unregister():
     vrd.unregister()
     flex.unregister()
     weights.unregister()
+    jigglebone.unregister() 
     # 翻译
     if bpy.app.version < (4, 0, 0):
         lct_zh_CN.unregister()

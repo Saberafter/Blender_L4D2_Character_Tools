@@ -865,11 +865,7 @@ class Jigglebone_OT_ExportJigglebone(bpy.types.Operator):
             ('FILE', "导出到文件", "将飘骨文本导出到文件"),
         ]
     ) 
-    bpy.types.Scene.jigglebone_export_path = StringProperty(
-        name="Export Path",
-        subtype='FILE_PATH',  # 设置为 FILE_PATH，可以选择文件名
-        default="//"
-    )
+
 
     @staticmethod
     def format_property(name, value):
@@ -1082,18 +1078,25 @@ classes = [
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+    bpy.types.Scene.jigglebone_export_path = StringProperty(
+        name="Export Path",
+        subtype='FILE_PATH',
+        default="//"
+    )
     bpy.types.Scene.jigglebone_list = CollectionProperty(type=JigglebonePropertyGroup)
     bpy.types.Scene.jigglebone_list_index = IntProperty(default=0)
     bpy.types.Scene.jigglebone_presets = PointerProperty(type=PresetPropertyGroup)
-    # bpy.app.handlers.depsgraph_update_post.append(update_bone_list_selection)
     bpy.types.Scene.Jigglebone_is_detailed = BoolProperty(name="Jigglebone Parameters Panel", default=False)
 
 def unregister():
-    for cls in classes:
-        bpy.utils.unregister_class(cls)
-
+    for cls in reversed(classes):
+        try:
+            bpy.utils.unregister_class(cls)
+        except RuntimeError:
+            pass
+            
+    del bpy.types.Scene.Jigglebone_is_detailed
     del bpy.types.Scene.jigglebone_list
     del bpy.types.Scene.jigglebone_list_index
     del bpy.types.Scene.jigglebone_export_path
     del bpy.types.Scene.jigglebone_presets
-    # bpy.app.handlers.depsgraph_update_post.remove(update_bone_list_selection)

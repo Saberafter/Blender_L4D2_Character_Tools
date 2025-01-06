@@ -184,4 +184,15 @@ data = {
         "Delete Key": "删除键",
         "Delete the currently selected key and its key-value pair": "删除当前选中的键及其键值对",
         "Select All/Deselect All/Invert Selection": "全选/取消全选/反选",
+        # Update related translations
+        "Check for updates": "检查更新",
+        "Update Available!": "有可用更新！",
+        "Version Check": "版本检查",
+        "Current version:": "当前版本：",
+        "Latest version:": "最新版本：",
+        "Update Notes:": "更新说明：",
+        "Go to download page": "前往下载页面",
+        "You are using the latest version": "您正在使用最新版本",
+        "New version available:": "新版本可用：",
+        "Download": "下载",
 }
