@@ -665,7 +665,11 @@ classes = [
 ]
 def register():
     for cls in classes:
-        bpy.utils.register_class(cls)
+        try:
+            bpy.utils.register_class(cls)
+        except Exception as e:
+            # 抑制重复注册的错误消息
+            pass
     bpy.types.Scene.cxbone_list = CollectionProperty(type=BonePropertyGroup)
     bpy.types.Scene.qdbone_list = CollectionProperty(type=BonePropertyGroup)
     bpy.types.Scene.cxbone_list_index = IntProperty()
@@ -681,15 +685,24 @@ def register():
 # 注销插件
 def unregister():
     for cls in classes:
-        bpy.utils.unregister_class(cls)
-    del bpy.types.Scene.cxbone_list
-    del bpy.types.Scene.qdbone_list
-    del bpy.types.Scene.cxbone_list_index
-    del bpy.types.Scene.qdbone_list_index
-    del bpy.types.Scene.bone_list_sets
-    del bpy.types.Scene.bone_list_sets_index
-    del bpy.types.Scene.export_default
-    del bpy.types.Scene.export_nekomdl
-    del bpy.types.Scene.project_items
-    del bpy.types.Scene.active_project_index
-    del bpy.types.Scene.export_all
+        try:
+            bpy.utils.unregister_class(cls)
+        except Exception as e:
+            # 抑制注销错误的消息
+            pass
+    
+    try:
+        del bpy.types.Scene.cxbone_list
+        del bpy.types.Scene.qdbone_list
+        del bpy.types.Scene.cxbone_list_index
+        del bpy.types.Scene.qdbone_list_index
+        del bpy.types.Scene.bone_list_sets
+        del bpy.types.Scene.bone_list_sets_index
+        del bpy.types.Scene.export_default
+        del bpy.types.Scene.export_nekomdl
+        del bpy.types.Scene.project_items
+        del bpy.types.Scene.active_project_index
+        del bpy.types.Scene.export_all
+    except Exception as e:
+        # 抑制删除属性错误的消息
+        pass

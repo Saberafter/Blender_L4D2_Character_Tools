@@ -1422,7 +1422,11 @@ classes = [
 # 注册新的属性
 def register():
     for cls in classes:
-        bpy.utils.register_class(cls)
+        try:
+            bpy.utils.register_class(cls)
+        except Exception as e:
+            # 抑制重复注册的错误消息
+            pass
     bpy.types.Scene.Valve_Armature = bpy.props.StringProperty(name="Valve Rig")
     bpy.types.Scene.Custom_Armature = bpy.props.StringProperty(name="Custom Rig")
     
@@ -1452,15 +1456,23 @@ def register():
 
 def unregister():
     for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+        try:
+            bpy.utils.unregister_class(cls)
+        except Exception as e:
+            # 抑制注销错误的消息
+            pass
     
     # 删除所有属性
-    del bpy.types.Scene.Valve_Armature
-    del bpy.types.Scene.Custom_Armature
-    del bpy.types.Scene.mapping_main_data
-    del bpy.types.Scene.mapping_temp_data
-    del bpy.types.Scene.mapping_list
-    del bpy.types.Scene.mapping_list_index
-    del bpy.types.Scene.mapping_ui_tab
-    del bpy.types.Scene.use_search_mode
-    del bpy.types.Scene.active_preset_name
+    try:
+        del bpy.types.Scene.Valve_Armature
+        del bpy.types.Scene.Custom_Armature
+        del bpy.types.Scene.mapping_main_data
+        del bpy.types.Scene.mapping_temp_data
+        del bpy.types.Scene.mapping_list
+        del bpy.types.Scene.mapping_list_index
+        del bpy.types.Scene.mapping_ui_tab
+        del bpy.types.Scene.use_search_mode
+        del bpy.types.Scene.active_preset_name
+    except Exception as e:
+        # 抑制删除属性错误的消息
+        pass

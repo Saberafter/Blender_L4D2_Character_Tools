@@ -896,11 +896,31 @@ classes = [
 
 def register():
     for cls in classes:
-        bpy.utils.register_class(cls)
-    bpy.types.WindowManager.flexmix_items = CollectionProperty(type=FlexmixItem)
-    bpy.types.WindowManager.flexmix_index = IntProperty() # 当前选中的列表项索引
-    load_presets()
+        try:
+            bpy.utils.register_class(cls)
+        except Exception as e:
+            # 抑制重复注册的错误消息
+            pass
+    
+    try:
+        bpy.types.WindowManager.flexmix_items = CollectionProperty(type=FlexmixItem)
+        bpy.types.WindowManager.flexmix_index = IntProperty() # 当前选中的列表项索引
+        load_presets()
+    except Exception as e:
+        # 抑制属性注册错误的消息
+        pass
 
 def unregister():
     for cls in classes:
-        bpy.utils.unregister_class(cls)
+        try:
+            bpy.utils.unregister_class(cls)
+        except Exception as e:
+            # 抑制注销错误的消息
+            pass
+    
+    try:
+        del bpy.types.WindowManager.flexmix_items
+        del bpy.types.WindowManager.flexmix_index
+    except Exception as e:
+        # 抑制删除属性错误的消息
+        pass

@@ -169,18 +169,37 @@ classes = [
 
 def register():
     for cls in classes:
-        bpy.utils.register_class(cls)
-    bpy.types.Scene.vertex_group_names = CollectionProperty(type=VertexGroupItem)
-    bpy.types.Scene.bl_VGE = bpy.props.BoolProperty(
-        name="Vertex Group Editing",
-        description="Vertex Group Editing",
-        default=False
-    )
+        try:
+            bpy.utils.register_class(cls)
+        except Exception as e:
+            # 抑制重复注册的错误消息
+            pass
+    
+    try:
+        bpy.types.Scene.vertex_group_names = CollectionProperty(type=VertexGroupItem)
+        bpy.types.Scene.bl_VGE = bpy.props.BoolProperty(
+            name="Vertex Group Editing",
+            description="Vertex Group Editing",
+            default=False
+        )
+    except Exception as e:
+        # 抑制属性注册错误的消息
+        pass
+
 def unregister():
     for cls in classes:
-        bpy.utils.unregister_class(cls)
+        try:
+            bpy.utils.unregister_class(cls)
+        except Exception as e:
+            # 抑制注销错误的消息
+            pass
 
-    del bpy.types.Scene.vertex_group_names
+    try:
+        del bpy.types.Scene.vertex_group_names
+        del bpy.types.Scene.bl_VGE
+    except Exception as e:
+        # 抑制删除属性错误的消息
+        pass
 
 if __name__ == "__main__":
     register()

@@ -27,6 +27,8 @@ bl_info = {
 }
 
 import bpy
+import logging
+import sys
 from . import vrd
 from . import weights
 from . import jigglebone
@@ -38,6 +40,11 @@ import requests
 import json
 from threading import Thread
 from bpy.app.translations import pgettext_iface as _
+
+# 重定向Blender控制台输出的类
+class NullWriter:
+    def write(self, string):
+        pass
 
 class UpdateChecker:
     def __init__(self):
@@ -430,16 +437,40 @@ classes = [
 
 
 def register():
-    # 先注册其他模块
-    bone_modify.register()
-    vrd.register()
-    jigglebone.register()
-    flex.register()
-    weights.register()
+    # 临时禁止控制台输出
+    old_stdout = sys.stdout
+    sys.stdout = NullWriter()
+    
+    # 先注册其他模块，使用try-except抑制消息输出
+    try:
+        bone_modify.register()
+    except Exception as e:
+        pass
+    try:
+        vrd.register()
+    except Exception as e:
+        pass
+    try:
+        jigglebone.register()
+    except Exception as e:
+        pass
+    try:
+        flex.register()
+    except Exception as e:
+        pass
+    try:
+        weights.register()
+    except Exception as e:
+        pass
     # bone_mapping.register()
+    
     # 然后注册本模块的类
     for cls in classes:
-        bpy.utils.register_class(cls)
+        try:
+            bpy.utils.register_class(cls)
+        except Exception as e:
+            # 抑制重复注册的错误消息
+            pass
 
     # 最后注册属性
     bpy.types.Scene.vertex_group_name_1 = bpy.props.StringProperty(name="Vertex Group 1")
@@ -462,11 +493,17 @@ def register():
     )
 
     # 翻译
-    if bpy.app.version < (4, 0, 0):
-        lct_zh_CN.register()
-    else:
-        lct_zh_CN.register()
-        lct_zh_HANS.register()
+    try:
+        if bpy.app.version < (4, 0, 0):
+            lct_zh_CN.register()
+        else:
+            lct_zh_CN.register()
+            lct_zh_HANS.register()
+    except Exception as e:
+        pass
+        
+    # 恢复标准输出
+    sys.stdout = old_stdout
 
 def unregister():
     # 先移除翻译
@@ -477,7 +514,7 @@ def unregister():
             lct_zh_CN.unregister()
             lct_zh_HANS.unregister()
     except:
-        print("警告: 无法注销翻译")
+        pass
 
     # 移除属性
     try:
@@ -494,24 +531,35 @@ def unregister():
         if hasattr(bpy.types.Scene, "Custom_Armature"):
             del bpy.types.Scene.Custom_Armature
     except:
-        print("警告: 无法删除某些属性")
+        pass
 
     # 注销本模块的类
     for cls in reversed(classes):
         try:
             if hasattr(cls, 'bl_rna'):
                 bpy.utils.unregister_class(cls)
-        except RuntimeError:
-            print(f"警告: 无法注销类 {cls.__name__}")
-            continue
+        except:
+            pass
 
     # 最后注销其他模块
     try:
         bone_modify.unregister()
+    except:
+        pass
+    try:
         vrd.unregister()
+    except:
+        pass
+    try:
         flex.unregister()
+    except:
+        pass
+    try:
         weights.unregister()
-        # bone_mapping.unregister()
+    except:
+        pass
+    # bone_mapping.unregister()
+    try:
         jigglebone.unregister()
     except:
-        print("警告: 无法注销某些模块")
+        pass

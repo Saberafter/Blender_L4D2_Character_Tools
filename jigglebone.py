@@ -1077,26 +1077,40 @@ classes = [
 
 def register():
     for cls in classes:
-        bpy.utils.register_class(cls)
-    bpy.types.Scene.jigglebone_export_path = StringProperty(
-        name="Export Path",
-        subtype='FILE_PATH',
-        default="//"
-    )
-    bpy.types.Scene.jigglebone_list = CollectionProperty(type=JigglebonePropertyGroup)
-    bpy.types.Scene.jigglebone_list_index = IntProperty(default=0)
-    bpy.types.Scene.jigglebone_presets = PointerProperty(type=PresetPropertyGroup)
-    bpy.types.Scene.Jigglebone_is_detailed = BoolProperty(name="Jigglebone Parameters Panel", default=False)
+        try:
+            bpy.utils.register_class(cls)
+        except Exception as e:
+            # 抑制重复注册的错误消息
+            pass
+    
+    try:
+        bpy.types.Scene.jigglebone_export_path = StringProperty(
+            name="Export Path",
+            subtype='FILE_PATH',
+            default="//"
+        )
+        bpy.types.Scene.jigglebone_list = CollectionProperty(type=JigglebonePropertyGroup)
+        bpy.types.Scene.jigglebone_list_index = IntProperty(default=0)
+        bpy.types.Scene.jigglebone_presets = PointerProperty(type=PresetPropertyGroup)
+        bpy.types.Scene.Jigglebone_is_detailed = BoolProperty(name="Jigglebone Parameters Panel", default=False)
+    except Exception as e:
+        # 抑制属性注册错误的消息
+        pass
 
 def unregister():
     for cls in reversed(classes):
         try:
             bpy.utils.unregister_class(cls)
-        except RuntimeError:
+        except Exception as e:
+            # 抑制注销错误的消息
             pass
             
-    del bpy.types.Scene.Jigglebone_is_detailed
-    del bpy.types.Scene.jigglebone_list
-    del bpy.types.Scene.jigglebone_list_index
-    del bpy.types.Scene.jigglebone_export_path
-    del bpy.types.Scene.jigglebone_presets
+    try:
+        del bpy.types.Scene.Jigglebone_is_detailed
+        del bpy.types.Scene.jigglebone_list
+        del bpy.types.Scene.jigglebone_list_index
+        del bpy.types.Scene.jigglebone_export_path
+        del bpy.types.Scene.jigglebone_presets
+    except Exception as e:
+        # 抑制删除属性错误的消息
+        pass
