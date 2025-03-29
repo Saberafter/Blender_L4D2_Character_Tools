@@ -616,49 +616,6 @@ class L4D2_PT_BoneModifyPanel(bpy.types.Panel):
         layout.operator("l4d2.rigging_operator", icon="GROUP_BONE")
         layout.operator("l4d2.grafting_operator", icon="GP_ONLY_SELECTED")
 
-# 预设管理面板
-class L4D2_PT_PresetManagerPanel(bpy.types.Panel):
-    bl_label = "预设管理"
-    bl_idname = "L4D2_PT_PresetManagerPanel"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "💝LCT"
-    bl_options = {'DEFAULT_CLOSED'} 
-
-    def draw(self, context):
-        layout = self.layout
-        
-        # 新建预设按钮
-        row = layout.row(align=True)
-        row.operator("l4d2.create_preset", icon="ADD", text="新建预设")
-        
-        # 获取预设文件列表
-        preset_files = []
-        if os.path.exists(MAPPING_PRESETS_DIR):
-            for file in os.listdir(MAPPING_PRESETS_DIR):
-                if file.endswith('.json'):
-                    preset_files.append(file[:-5])  # 去掉.json后缀
-        
-        if preset_files:
-            # 预设列表
-            box = layout.box()
-            for preset_name in preset_files:
-                row = box.row(align=True)
-                # 加载预设按钮
-                load_op = row.operator("l4d2.load_preset", icon="FILE_REFRESH", text="", emboss=False)
-                load_op.preset_name = preset_name
-                # 预设名称
-                row.label(text=preset_name)
-                # 导出预设按钮
-                export_op = row.operator("l4d2.export_preset", icon="EXPORT", text="", emboss=False)
-                export_op.preset_name = preset_name
-                # 删除预设按钮
-                delete_op = row.operator("l4d2.delete_preset", icon="X", text="", emboss=False)
-                delete_op.preset_name = preset_name
-        
-        # 导入预设按钮
-        row = layout.row()
-        row.operator("l4d2.import_preset", icon="IMPORT", text="导入预设")
 
 class L4D2_OT_UnbindAndKeepShape(bpy.types.Operator):
     """Maintain shape and transformation when breaking bone parent-child relationships"""
@@ -1126,6 +1083,20 @@ class BONE_PT_MappingPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         
+        # 预设操作按钮
+        row = layout.row(align=True)
+        
+        # 使用当前预设名称作为下拉菜单的显示文本
+        row.operator_menu_enum("l4d2.select_preset", "preset_name", text=scene.active_preset_name)
+        
+        # 预设管理按钮
+        row.operator("l4d2.create_preset", icon="ADD", text="").preset_name = scene.active_preset_name
+        row.operator("l4d2.import_preset", icon="IMPORT", text="")
+        row.operator("l4d2.export_preset", icon="EXPORT", text="").preset_name = scene.active_preset_name
+        row.operator("l4d2.delete_preset", icon="X", text="").preset_name = scene.active_preset_name
+        
+        layout.separator()
+        
         # 标签页
         row = layout.row()
         row.prop(scene, "mapping_ui_tab", expand=True)
@@ -1139,6 +1110,44 @@ class BONE_PT_MappingPanel(bpy.types.Panel):
         row = layout.row()
         row.operator("mapping.add_new_mapping", text="添加新映射")
         row.operator("mapping.apply_changes", text="应用更改")
+
+# 生成预设列表用于枚举属性
+def get_preset_enum_items(self, context):
+    items = []
+    if os.path.exists(MAPPING_PRESETS_DIR):
+        for file in os.listdir(MAPPING_PRESETS_DIR):
+            if file.endswith('.json'):
+                name = file[:-5]  # 去掉.json后缀
+                items.append((name, name, ""))
+    return items if items else [("None", "None", "")]
+
+# 预设选择操作符
+class L4D2_OT_SelectPreset(bpy.types.Operator):
+    bl_idname = "l4d2.select_preset"
+    bl_label = "Select Preset"
+    bl_description = "选择预设并应用"
+    
+    preset_name: bpy.props.EnumProperty(
+        name="预设",
+        description="选择要使用的预设",
+        items=get_preset_enum_items
+    )
+    
+    def execute(self, context):
+        # 设置活动预设并加载
+        context.scene.active_preset_name = self.preset_name
+        success, error_msg = MappingDataManager.load_preset_data(context, self.preset_name)
+        if not success:
+            self.report({'ERROR'}, f"加载预设失败: {error_msg}")
+            return {'CANCELLED'}
+            
+        # 更新UI列表
+        if not MappingDataManager.update_ui_list(context):
+            self.report({'ERROR'}, "更新UI列表失败")
+            return {'CANCELLED'}
+            
+        self.report({'INFO'}, f"预设 {self.preset_name} 已加载")
+        return {'FINISHED'}
 
 # 操作符
 class MAPPING_OT_AddNewMapping(bpy.types.Operator):
@@ -1406,7 +1415,6 @@ classes = [
     L4D2_OT_ImportPreset,
     L4D2_OT_ExportPreset,
     L4D2_PT_BoneModifyPanel,
-    L4D2_PT_PresetManagerPanel,
     BONE_PT_MappingPanel,
     MAPPING_OT_AddNewMapping,
     MAPPING_OT_ApplyChanges,
@@ -1415,7 +1423,8 @@ classes = [
     MAPPING_OT_SelectCustomBone,
     MAPPING_OT_AddCustomBone,
     MAPPING_OT_RemoveCustomBone,
-    MAPPING_OT_RemoveMapping
+    MAPPING_OT_RemoveMapping,
+    L4D2_OT_SelectPreset
 ]
 
 
@@ -1445,10 +1454,10 @@ def register():
         update=MappingDataManager.update_mapping_list  # 更新回调函数引用
     )
     bpy.types.Scene.use_search_mode = bpy.props.BoolProperty(default=True)
-    bpy.types.Scene.active_preset_name = bpy.props.StringProperty(
-        name="Active Preset",
-        description="当前活动预设的名称",
-        default="Valve_L4D2"
+    bpy.types.Scene.active_preset_name = bpy.props.EnumProperty(
+        name="活动预设",
+        description="当前活动的预设",
+        items=get_preset_enum_items
     )
     
     # 初始化预设
