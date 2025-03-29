@@ -32,7 +32,7 @@ from . import weights
 from . import jigglebone
 from . import flex
 from . import bone_modify
-from . import weights
+# from . import bone_mapping
 from .resources import bone_dict
 import requests
 import json
@@ -219,6 +219,7 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
             row = layout.row()
             row.label(text=_("New version available:") + f" {'.'.join(map(str, update_checker.latest_version))}")
             row.operator("wm.url_open", text=_("Download"), icon="URL").url = update_checker.download_url
+        
         scene = context.scene
         # 使用 split 布局类型调整左右列的宽度比例
         split = layout.split(factor=0.25)
@@ -229,16 +230,14 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
         col_left.label(text="Custom Rig:")
         # 下拉框
         col_right.prop(scene, "Valve_Armature", text="", icon="ARMATURE_DATA")
-
         col_right.prop(scene, "Custom_Armature", text="", icon="MOD_ARMATURE")
-
 
         bone_modify.L4D2_PT_BoneModifyPanel.draw(self, context)
 
         row = layout.row()
         row.operator("l4d2.remove_constraint", text="Remove All Constraint", icon="X").action = 'REMOVE_ALL'
-        # row.operator("l4d2.remove_constraint", text="Cancel Y RotationConstraint", icon="X").action = 'REMOVE_ROT_Y'
         row.operator("l4d2.remove_constraint", text="Remove TransformConstraint", icon="X").action = 'REMOVE_TRANS'
+        
         row = layout.row()
         row.operator("l4d2.rename_bones_operator", icon="GREASEPENCIL")
         row = layout.row()
@@ -246,9 +245,6 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
 
         layout.prop(context.scene, "bone_mapping_management", text="Bone Mapping Management", icon="TRIA_DOWN" if context.scene.bone_mapping_management else "TRIA_RIGHT")
 
-        if context.scene.bone_mapping_management:
-            bone_modify.VIEW3D_PT_CustomBoneDictManager.draw(self, context)
-        
         weights.L4D2_PT_WeightsPanel.draw(self, context)
         
         row = layout.row()
@@ -263,8 +259,6 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
         else:
             row = layout.row()
             row.operator("select.by_pattern")
-            
-
 
 class L4D2_PT_VRDTools(bpy.types.Panel):
     bl_label = "🕹️ VRD Tools"
@@ -436,8 +430,18 @@ classes = [
 
 
 def register():
+    # 先注册其他模块
+    bone_modify.register()
+    vrd.register()
+    jigglebone.register()
+    flex.register()
+    weights.register()
+    # bone_mapping.register()
+    # 然后注册本模块的类
     for cls in classes:
         bpy.utils.register_class(cls)
+
+    # 最后注册属性
     bpy.types.Scene.vertex_group_name_1 = bpy.props.StringProperty(name="Vertex Group 1")
     bpy.types.Scene.vertex_group_name_2 = bpy.props.StringProperty(name="Vertex Group 2")
     bpy.types.Object.select_pattern = bpy.props.StringProperty(default="*hair*")
@@ -446,11 +450,6 @@ def register():
         description="Bone Mapping Management",
         default=False
     )
-    bone_modify.register()
-    vrd.register()
-    jigglebone.register()
-    flex.register()
-    weights.register()
     bpy.types.Scene.Valve_Armature = bpy.props.PointerProperty(
         name="Valve Armature",
         type=bpy.types.Object,
@@ -470,20 +469,49 @@ def register():
         lct_zh_HANS.register()
 
 def unregister():
+    # 先移除翻译
+    try:
+        if bpy.app.version < (4, 0, 0):
+            lct_zh_CN.unregister()
+        else:
+            lct_zh_CN.unregister()
+            lct_zh_HANS.unregister()
+    except:
+        print("警告: 无法注销翻译")
 
-    for cls in classes:
-        bpy.utils.unregister_class(cls)
-    del bpy.types.Scene.vertex_group_name_1
-    del bpy.types.Scene.vertex_group_name_2
-    del bpy.types.Object.select_pattern
-    bone_modify.unregister()
-    vrd.unregister()
-    flex.unregister()
-    weights.unregister()
-    jigglebone.unregister() 
-    # 翻译
-    if bpy.app.version < (4, 0, 0):
-        lct_zh_CN.unregister()
-    else:
-        lct_zh_CN.unregister()
-        lct_zh_HANS.unregister()
+    # 移除属性
+    try:
+        if hasattr(bpy.types.Scene, "vertex_group_name_1"):
+            del bpy.types.Scene.vertex_group_name_1
+        if hasattr(bpy.types.Scene, "vertex_group_name_2"):
+            del bpy.types.Scene.vertex_group_name_2
+        if hasattr(bpy.types.Object, "select_pattern"):
+            del bpy.types.Object.select_pattern
+        if hasattr(bpy.types.Scene, "bone_mapping_management"):
+            del bpy.types.Scene.bone_mapping_management
+        if hasattr(bpy.types.Scene, "Valve_Armature"):
+            del bpy.types.Scene.Valve_Armature
+        if hasattr(bpy.types.Scene, "Custom_Armature"):
+            del bpy.types.Scene.Custom_Armature
+    except:
+        print("警告: 无法删除某些属性")
+
+    # 注销本模块的类
+    for cls in reversed(classes):
+        try:
+            if hasattr(cls, 'bl_rna'):
+                bpy.utils.unregister_class(cls)
+        except RuntimeError:
+            print(f"警告: 无法注销类 {cls.__name__}")
+            continue
+
+    # 最后注销其他模块
+    try:
+        bone_modify.unregister()
+        vrd.unregister()
+        flex.unregister()
+        weights.unregister()
+        # bone_mapping.unregister()
+        jigglebone.unregister()
+    except:
+        print("警告: 无法注销某些模块")
