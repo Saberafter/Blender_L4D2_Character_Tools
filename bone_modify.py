@@ -1569,47 +1569,6 @@ class BONE_UL_MappingList(bpy.types.UIList):
             
         return flt_flags, []
 
-# 标签页面板
-class BONE_PT_MappingPanel(bpy.types.Panel):
-    bl_label = "骨骼映射"
-    bl_idname = "BONE_PT_mapping_panel"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "💝LCT"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-        scene = context.scene
-        
-        # 预设操作按钮
-        row = layout.row(align=True)
-        
-        # 使用当前预设名称作为下拉菜单的显示文本
-        row.operator_menu_enum("l4d2.select_preset", "preset_name", text=scene.active_preset_name)
-        
-        # 预设管理按钮
-        row.operator("l4d2.create_preset", icon="ADD", text="").preset_name = scene.active_preset_name
-        row.operator("l4d2.import_preset", icon="IMPORT", text="")
-        row.operator("l4d2.export_preset", icon="EXPORT", text="").preset_name = scene.active_preset_name
-        row.operator("l4d2.delete_preset", icon="X", text="").preset_name = scene.active_preset_name
-        
-        layout.separator()
-        
-        # 标签页
-        row = layout.row()
-        row.prop(scene, "mapping_ui_tab", expand=True)
-        
-        # UI列表
-        row = layout.row()
-        row.template_list("BONE_UL_MappingList", "", scene, "mapping_list",
-                         scene, "mapping_list_index", rows=5)
-        
-        # 底部按钮
-        row = layout.row()
-        row.operator("mapping.add_new_mapping", text="添加新映射")
-        row.operator("mapping.apply_changes", text="应用更改")
-
 # 生成预设列表用于枚举属性
 def get_preset_enum_items(self, context):
     items = []
@@ -1964,7 +1923,6 @@ classes = [
     L4D2_OT_ImportPreset,
     L4D2_OT_ExportPreset,
     L4D2_PT_BoneModifyPanel,
-    BONE_PT_MappingPanel,
     MAPPING_OT_AddNewMapping,
     MAPPING_OT_ApplyChanges,
     MAPPING_OT_ToggleSearchMode,

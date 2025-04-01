@@ -210,8 +210,8 @@ from . import translation
 lct_zh_CN = TranslationHelper('lct_zh_CN', translation.data)
 lct_zh_HANS = TranslationHelper('lct_zh_HANS', translation.data, lang='zh_HANS')
 
-class L4D2_PT_GeneralTools(bpy.types.Panel):
-    bl_label = "🛠️ General Tools"
+class L4D2_PT_BoneTools(bpy.types.Panel):
+    bl_label = "🦴 Bone Tools"
     bl_idname = "L4D2_PT_CharacterToolsPanel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -219,14 +219,6 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        # 添加更新检查按钮
-        row = layout.row()
-        row.operator("l4d2.check_update", icon="FILE_REFRESH")
-        if update_checker.has_update:
-            row = layout.row()
-            row.label(text=_("New version available:") + f" {'.'.join(map(str, update_checker.latest_version))}")
-            row.operator("wm.url_open", text=_("Download"), icon="URL").url = update_checker.download_url
-        
         scene = context.scene
         # 使用 split 布局类型调整左右列的宽度比例
         split = layout.split(factor=0.25)
@@ -250,7 +242,41 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
         row = layout.row()
         row.operator("l4d2.unbind_keep_shape", icon="CONSTRAINT_BONE")
 
+        # 骨骼映射管理折叠面板
         layout.prop(context.scene, "bone_mapping_management", text="Bone Mapping Management", icon="TRIA_DOWN" if context.scene.bone_mapping_management else "TRIA_RIGHT")
+
+        # 如果展开，则显示骨骼映射UI
+        if context.scene.bone_mapping_management:
+            box = layout.box()
+            col = box.column()
+            
+            # 预设操作按钮
+            row = col.row(align=True)
+            
+            # 使用当前预设名称作为下拉菜单的显示文本
+            row.operator_menu_enum("l4d2.select_preset", "preset_name", text=context.scene.active_preset_name)
+            
+            # 预设管理按钮
+            row.operator("l4d2.create_preset", icon="ADD", text="").preset_name = context.scene.active_preset_name
+            row.operator("l4d2.import_preset", icon="IMPORT", text="")
+            row.operator("l4d2.export_preset", icon="EXPORT", text="").preset_name = context.scene.active_preset_name
+            row.operator("l4d2.delete_preset", icon="X", text="").preset_name = context.scene.active_preset_name
+            
+            col.separator()
+            
+            # 标签页
+            row = col.row()
+            row.prop(context.scene, "mapping_ui_tab", expand=True)
+            
+            # UI列表
+            row = col.row()
+            row.template_list("BONE_UL_MappingList", "", context.scene, "mapping_list",
+                             context.scene, "mapping_list_index", rows=5)
+            
+            # 底部按钮
+            row = col.row()
+            row.operator("mapping.add_new_mapping", text="添加新映射")
+            row.operator("mapping.apply_changes", text="应用更改")
 
         weights.L4D2_PT_WeightsPanel.draw(self, context)
         
@@ -266,6 +292,24 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
         else:
             row = layout.row()
             row.operator("select.by_pattern")
+
+class L4D2_PT_UtilityTools(bpy.types.Panel):
+    bl_label = "⚙️ Utilities"
+    bl_idname = "L4D2_PT_UtilityToolsPanel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "💝LCT"
+    bl_options = {'DEFAULT_CLOSED'} 
+    
+    def draw(self, context):
+        layout = self.layout
+        # 添加更新检查按钮
+        row = layout.row()
+        row.operator("l4d2.check_update", icon="FILE_REFRESH")
+        if update_checker.has_update:
+            row = layout.row()
+            row.label(text=_("New version available:") + f" {'.'.join(map(str, update_checker.latest_version))}")
+            row.operator("wm.url_open", text=_("Download"), icon="URL").url = update_checker.download_url
 
 class L4D2_PT_VRDTools(bpy.types.Panel):
     bl_label = "🕹️ VRD Tools"
@@ -424,10 +468,11 @@ class L4D2_MT_SelectBonesMenu(bpy.types.Menu):
 
 
 classes = [
-    L4D2_PT_GeneralTools,
+    L4D2_PT_BoneTools,
     L4D2_PT_VRDTools,
     L4D2_PT_JiggleBoneTools,
     L4D2_PT_FlexTools,
+    L4D2_PT_UtilityTools,
     L4D2_OT_RemoveConstraint,
     L4D2_OT_SelectBones,
     L4D2_MT_SelectBonesMenu,
@@ -481,6 +526,32 @@ def register():
         description="Bone Mapping Management",
         default=False
     )
+    
+    # 确保骨骼映射所需的属性已注册 (由bone_modify模块处理)
+    if not hasattr(bpy.types.Scene, "mapping_ui_tab"):
+        bpy.types.Scene.mapping_ui_tab = bpy.props.EnumProperty(
+            name="映射类型",
+            items=[
+                ('ALL', "全部", "显示所有映射"),
+                ('UNIQUE', "独立", "仅显示独立映射"),
+                ('COMMON', "通用", "仅显示通用映射")
+            ],
+            default='ALL',
+            update=bone_modify.MappingDataManager.update_mapping_list
+        )
+    
+    if not hasattr(bpy.types.Scene, "active_preset_name"):
+        bpy.types.Scene.active_preset_name = bpy.props.StringProperty(
+            name="当前预设",
+            default="Valve_L4D2"
+        )
+    
+    if not hasattr(bpy.types.Scene, "use_search_mode"):
+        bpy.types.Scene.use_search_mode = bpy.props.BoolProperty(
+            name="搜索模式",
+            default=False
+        )
+    
     bpy.types.Scene.Valve_Armature = bpy.props.PointerProperty(
         name="Valve Armature",
         type=bpy.types.Object,
@@ -526,6 +597,15 @@ def unregister():
             del bpy.types.Object.select_pattern
         if hasattr(bpy.types.Scene, "bone_mapping_management"):
             del bpy.types.Scene.bone_mapping_management
+            
+        # 移除骨骼映射相关属性（但这些属性通常由bone_modify模块管理）
+        if hasattr(bpy.types.Scene, "mapping_ui_tab"):
+            del bpy.types.Scene.mapping_ui_tab
+        if hasattr(bpy.types.Scene, "active_preset_name"):
+            del bpy.types.Scene.active_preset_name
+        if hasattr(bpy.types.Scene, "use_search_mode"):
+            del bpy.types.Scene.use_search_mode
+            
         if hasattr(bpy.types.Scene, "Valve_Armature"):
             del bpy.types.Scene.Valve_Armature
         if hasattr(bpy.types.Scene, "Custom_Armature"):
