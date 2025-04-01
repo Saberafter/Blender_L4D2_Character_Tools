@@ -655,6 +655,370 @@ class L4D2_OT_RiggingOperator(bpy.types.Operator):
         # 调用invoke方法来显示确认面板
         return self.invoke(context, None)
 
+class L4D2_OT_GraftingConfirmOperator(bpy.types.Operator):
+    bl_idname = "l4d2.grafting_confirm"
+    bl_label = "确认嫁接操作"
+    bl_description = "确认当前映射数据并执行骨骼嫁接操作"
+    bl_options = {'REGISTER', 'INTERNAL'}
+    
+    # 传递数据的属性
+    mapping_source: bpy.props.StringProperty(default="未知")
+    preset_name: bpy.props.StringProperty(default="未知")
+    armature_name: bpy.props.StringProperty()
+    mapping_count: bpy.props.IntProperty(default=0)
+    common_count: bpy.props.IntProperty(default=0)
+    unique_count: bpy.props.IntProperty(default=0)
+    
+    # 预览数据
+    selected_bones_count: bpy.props.IntProperty(default=0)
+    preview_mode: bpy.props.EnumProperty(
+        name="预览模式",
+        items=[
+            ('SELECTED', "选中骨骼", "仅显示选中骨骼的嫁接关系"),
+            ('ALL', "所有骨骼", "显示所有骨骼的嫁接关系")
+        ],
+        default='SELECTED'
+    )
+    
+    # 显示嫁接预览的字符串属性
+    mapping_preview: bpy.props.StringProperty()
+    
+    # 存储序列化的映射关系，避免重复计算
+    mapping_data: bpy.props.StringProperty()
+    
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self, width=500)
+    
+    def draw(self, context):
+        layout = self.layout
+        
+        # 显示基本信息
+        box = layout.box()
+        row = box.row()
+        row.label(text=f"当前预设: {self.preset_name}")
+        row.label(text=f"数据来源: {self.mapping_source}")
+        
+        row = box.row()
+        row.label(text=f"目标骨架: {self.armature_name}")
+        
+        # 显示映射统计信息
+        row = box.row()
+        row.label(text=f"官方映射骨骼数: {self.mapping_count}")
+        row.label(text=f"通用映射骨骼数: {self.common_count}")
+        row.label(text=f"独立映射骨骼数: {self.unique_count}")
+        
+        # 显示选择模式
+        if self.selected_bones_count > 0:
+            row = box.row()
+            row.label(text=f"已选中骨骼数: {self.selected_bones_count}")
+            row.prop(self, "preview_mode", text="")
+        
+        # 提示信息
+        preview_box = layout.box()
+        preview_box.label(text="嫁接操作预览:")
+        
+        # 解析映射数据
+        try:
+            mapping_data = json.loads(self.mapping_data)
+            
+            # 显示嫁接关系预览
+            if self.mapping_preview:
+                # 创建滚动区域显示嫁接关系
+                relationship_box = preview_box.box()
+                relationship_box.label(text="嫁接关系预览 (子骨骼 -> 父骨骼):")
+                
+                # 计算需要显示的行数，限制滚动区域的高度
+                lines = [line for line in self.mapping_preview.split('\n') if line.strip()]
+                num_lines = len(lines)
+                
+                # 创建滚动区域，最大显示10行，超过则滚动
+                scroll_height = min(10, num_lines)
+                scroll = relationship_box.box()
+                col = scroll.column_flow(columns=1)
+                
+                for i, line in enumerate(lines):
+                    col.scale_y = 0.7  # 稍微减小行高，使更多内容可见
+                    col.label(text=line)
+                    
+                # 添加显示数量信息
+                relationship_box.label(text=f"总共 {num_lines} 个可能的嫁接关系")
+            
+            # 根据预览模式显示不同内容
+            operation_box = preview_box.box()
+            operation_box.label(text="处理流程:")
+            if self.preview_mode == 'SELECTED' and self.selected_bones_count > 0:
+                operation_box.label(text=f"步骤 1: 筛选 {self.selected_bones_count} 个选中的非官方骨骼")
+                operation_box.label(text="步骤 2: 根据预设映射关系查找对应的官方骨骼")
+                operation_box.label(text="步骤 3: 为匹配成功的骨骼建立父子关系")
+            else:
+                operation_box.label(text="步骤 1: 筛选场景中所有非官方骨骼")
+                operation_box.label(text="步骤 2: 根据预设映射关系查找对应的官方骨骼")
+                operation_box.label(text="步骤 3: 为匹配成功的骨骼建立父子关系")
+        
+        except (json.JSONDecodeError, TypeError) as e:
+            preview_box.label(text=f"解析映射数据失败: {str(e)}")
+        
+        # 提示信息
+        layout.label(text="请确认以上信息无误后点击确定执行骨骼嫁接操作")
+    
+    def execute(self, context):
+        # 获取目标骨架
+        obj = bpy.data.objects.get(self.armature_name)
+        if not obj or obj.type != 'ARMATURE':
+            self.report({'ERROR'}, "未找到骨架对象")
+            return {'CANCELLED'}
+            
+        # 保存当前模式
+        current_mode = context.mode
+        
+        # 设置为编辑模式
+        bpy.ops.object.mode_set(mode='EDIT')
+        edit_bones = obj.data.edit_bones
+        selected_bones = [bone for bone in edit_bones if bone.select]
+        
+        # 解析传递的映射数据
+        try:
+            mapping_data = json.loads(self.mapping_data)
+            official_to_customs = mapping_data.get('official_to_customs', {})
+            custom_to_official = mapping_data.get('custom_to_official', {})
+            mapping_only = mapping_data.get('mapping_only', False)  # 获取是否只使用映射关系的标志
+        except (json.JSONDecodeError, TypeError) as e:
+            self.report({'ERROR'}, f"解析映射数据失败: {str(e)}")
+            return {'CANCELLED'}
+        
+        # 设置调试模式
+        debug_mode = context.scene.get('debug_mode', False)
+        
+        # 根据选择状态处理骨骼
+        processed_count = 0
+        
+        # 根据预览模式执行相应的处理
+        if selected_bones and self.preview_mode == 'SELECTED':
+            # 如果有选中的骨骼且是选中模式，只处理选中的骨骼
+            processed_bones = graft_process_selected_bones(
+                edit_bones, selected_bones, official_to_customs, custom_to_official, debug_mode
+            )
+            processed_count = len(processed_bones)
+            status_message = f"已处理 {processed_count} 个选中骨骼"
+        else:
+            # 处理所有骨骼
+            processed_bones = graft_process_all_bones(
+                edit_bones, official_to_customs, custom_to_official, debug_mode
+            )
+            processed_count = len(processed_bones)
+            status_message = f"已处理 {processed_count} 个骨骼"
+        
+        # 恢复到姿态模式
+        bpy.ops.object.mode_set(mode='POSE')
+        
+        if processed_count > 0:
+            self.report({'INFO'}, f"骨骼嫁接完成。{status_message}")
+        else:
+            self.report({'WARNING'}, "未找到合适的骨骼进行嫁接，请检查骨骼位置和映射关系")
+            
+        return {'FINISHED'}
+
+# 嫁接辅助函数，避免重复代码
+def graft_build_mappings():
+    """构建骨骼映射关系，优化版
+    
+    返回:
+        tuple: (官方骨骼到自定义骨骼的映射, 自定义骨骼到官方骨骼的映射)
+    """
+    # 使用全局映射变量
+    global current_bone_mapping, current_unique_mapping, current_common_mapping
+    
+    # 构建最终所需的两个主要映射
+    official_to_customs = {}  # 官方骨骼 -> 自定义骨骼列表
+    custom_to_official = {}   # 自定义骨骼 -> 官方骨骼
+
+    # 预处理current_unique_mapping和current_common_mapping
+    # 创建通用骨骼到自定义骨骼的直接映射，避免嵌套循环
+    common_to_customs = {}
+    for common, customs in current_unique_mapping.items():
+        if customs:  # 确保不是空列表
+            if common not in common_to_customs:
+                common_to_customs[common] = []
+            common_to_customs[common].extend(customs)
+            
+    for common, customs in current_common_mapping.items():
+        if customs:  # 确保不是空列表
+            if common not in common_to_customs:
+                common_to_customs[common] = []
+            common_to_customs[common].extend(customs)
+
+    # 一次遍历构建全部所需映射
+    for official, commons in current_bone_mapping.items():
+        customs = []
+        for common in commons:
+            # 直接查询通用骨骼对应的自定义骨骼
+            if common in common_to_customs:
+                customs.extend(common_to_customs[common])
+        
+        # 存储官方到自定义的映射
+        if customs:
+            official_to_customs[official] = customs
+            # 同时构建反向映射
+            for custom in customs:
+                custom_to_official[custom] = official
+    
+    return official_to_customs, custom_to_official
+
+def graft_process_selected_bones(edit_bones, selected_bones, official_to_customs, custom_to_official, debug_mode=False):
+    """处理选中的骨骼，只基于映射关系，优化版
+    
+    Args:
+        edit_bones: 编辑模式下的骨骼集合
+        selected_bones: 选中的骨骼列表
+        official_to_customs: 官方骨骼到自定义骨骼的映射
+        custom_to_official: 自定义骨骼到官方骨骼的映射
+        debug_mode: 是否输出调试信息
+        
+    Returns:
+        set: 已处理的骨骼名称集合
+    """
+    processed_bones = set()
+    
+    # 创建骨骼名称映射加速查找
+    bone_by_name = {bone.name: bone for bone in edit_bones}
+    official_bones_set = set(current_bone_mapping.keys())
+    
+    # 预处理简化的骨骼名称
+    simplified_names = {}
+    for bone in selected_bones:
+        if bone.name not in official_bones_set:
+            simplified_names[bone.name] = simplify_bonename(bone.name)
+    
+    # 构建反向查找表，加速匹配
+    simplified_custom_to_official = {}
+    for custom, official in custom_to_official.items():
+        simplified_custom = simplify_bonename(custom)
+        simplified_custom_to_official[simplified_custom] = official
+    
+    # 直接处理选中的非官方骨骼
+    for bone in selected_bones:
+        if bone.name in official_bones_set:
+            continue
+            
+        # 使用简化名称快速查找
+        simplified_name = simplified_names.get(bone.name)
+        if simplified_name in simplified_custom_to_official:
+            official = simplified_custom_to_official[simplified_name]
+            parent_bone = bone_by_name.get(official)
+            if parent_bone:
+                # 设置父子关系
+                if bone.use_connect:
+                    bone.use_connect = False
+                bone.parent = parent_bone
+                
+                if debug_mode:
+                    print(f"基于映射设置父子关系: {parent_bone.name} -> {bone.name}")
+                    
+                processed_bones.add(bone.name)
+    
+    return processed_bones
+
+def graft_process_all_bones(edit_bones, official_to_customs, custom_to_official, debug_mode=False):
+    """处理所有骨骼，只基于映射关系，优化版
+    
+    Args:
+        edit_bones: 编辑模式下的骨骼集合
+        official_to_customs: 官方骨骼到自定义骨骼的映射
+        custom_to_official: 自定义骨骼到官方骨骼的映射
+        debug_mode: 是否输出调试信息
+        
+    Returns:
+        set: 已处理的骨骼名称集合
+    """
+    processed_bones = set()
+    
+    # 创建骨骼名称映射加速查找
+    bone_by_name = {bone.name: bone for bone in edit_bones}
+    official_bones_set = set(current_bone_mapping.keys())
+    
+    # 预处理所有非官方骨骼
+    non_official_bones = []
+    simplified_names = {}
+    for bone in edit_bones:
+        if bone.name not in official_bones_set:
+            non_official_bones.append(bone)
+            simplified_names[bone.name] = simplify_bonename(bone.name)
+    
+    # 构建反向查找表，加速匹配
+    simplified_custom_to_official = {}
+    for custom, official in custom_to_official.items():
+        simplified_custom = simplify_bonename(custom)
+        simplified_custom_to_official[simplified_custom] = official
+    
+    # 处理所有非官方骨骼
+    for bone in non_official_bones:
+        # 使用简化名称快速查找
+        simplified_name = simplified_names.get(bone.name)
+        if simplified_name in simplified_custom_to_official:
+            official = simplified_custom_to_official[simplified_name]
+            parent_bone = bone_by_name.get(official)
+            if parent_bone:
+                # 设置父子关系
+                if bone.use_connect:
+                    bone.use_connect = False
+                bone.parent = parent_bone
+                
+                if debug_mode:
+                    print(f"基于映射设置父子关系: {parent_bone.name} -> {bone.name}")
+                    
+                processed_bones.add(bone.name)
+                    
+    return processed_bones
+
+def generate_grafting_preview(edit_bones, selected_bones, official_to_customs, custom_to_official):
+    """生成骨骼嫁接预览数据
+    
+    Args:
+        edit_bones: 编辑模式下的骨骼集合
+        selected_bones: 选中的骨骼列表，如果为空则处理所有骨骼
+        official_to_customs: 官方骨骼到自定义骨骼的映射
+        custom_to_official: 自定义骨骼到官方骨骼的映射
+        
+    Returns:
+        str: 骨骼嫁接预览文本
+    """
+    # 预处理数据
+    bone_name_to_obj = {bone.name: bone for bone in edit_bones}
+    selected_bone_names = {bone.name for bone in selected_bones} if selected_bones else set()
+    official_bones_set = set(current_bone_mapping.keys())
+    
+    # 预处理简化的骨骼名称，避免重复计算
+    simplified_bone_names = {}
+    for bone in edit_bones:
+        if bone.name not in official_bones_set:  # 只处理非官方骨骼
+            simplified_bone_names[bone.name] = simplify_bonename(bone.name)
+    
+    # 预先计算自定义骨骼到官方骨骼的映射关系
+    custom_to_official_map = {}
+    for bone_name, simplified_name in simplified_bone_names.items():
+        for official, customs in official_to_customs.items():
+            if any(simplified_name == simplify_bonename(custom) for custom in customs):
+                if official in bone_name_to_obj:
+                    custom_to_official_map[bone_name] = official
+                    break
+    
+    # 生成预览行
+    mapping_preview_lines = []
+    
+    # 根据选中状态生成预览
+    if selected_bones:
+        # 只处理选中的骨骼
+        for bone_name in selected_bone_names:
+            if bone_name in custom_to_official_map:
+                mapping_preview_lines.append(f"{bone_name} -> {custom_to_official_map[bone_name]} (映射关系)")
+    else:
+        # 处理所有非官方骨骼
+        for bone_name, official in custom_to_official_map.items():
+            mapping_preview_lines.append(f"{bone_name} -> {official} (映射关系)")
+    
+    # 生成最终预览
+    return "\n".join(mapping_preview_lines)
+
 class L4D2_OT_GraftingOperator(bpy.types.Operator):
     bl_idname = "l4d2.grafting_operator"
     bl_label = "Graft Bone"
@@ -673,226 +1037,7 @@ class L4D2_OT_GraftingOperator(bpy.types.Operator):
         if self.debug_mode:
             print(message)
 
-    def set_parent_relationship(self, child_bone, parent_bone, reason=""):
-        """设置骨骼父子关系的通用方法"""
-        if child_bone.use_connect:
-            child_bone.use_connect = False
-        child_bone.parent = parent_bone
-        
-        if reason:
-            self.debug_print(f"{reason}: {parent_bone.name} -> {child_bone.name}")
-        return True
-
-    def is_close_enough(self, bone_a, bone_b):
-        """判断两个骨骼是否足够接近"""
-        return (bone_a.head - bone_b.head).length < self.threshold
-    
-    def build_mappings(self):
-        """构建骨骼映射关系
-        
-        返回:
-            tuple: (官方骨骼到自定义骨骼的映射, 自定义骨骼到官方骨骼的映射)
-        """
-        # 使用全局映射变量
-        global current_bone_mapping, current_unique_mapping, current_common_mapping
-        
-        # 构建最终所需的两个主要映射
-        official_to_customs = {}  # 官方骨骼 -> 自定义骨骼列表
-        custom_to_official = {}   # 自定义骨骼 -> 官方骨骼
-
-        # 一次遍历构建全部所需映射
-        for official, commons in current_bone_mapping.items():
-            customs = []
-            for common in commons:
-                # 收集通用骨骼对应的所有自定义骨骼
-                if common in current_unique_mapping:
-                    customs.extend(current_unique_mapping[common])
-                if common in current_common_mapping:
-                    customs.extend(current_common_mapping[common])
-            
-            # 存储官方到自定义的映射
-            if customs:
-                official_to_customs[official] = customs
-                # 同时构建反向映射
-                for custom in customs:
-                    custom_to_official[custom] = official
-        
-        return official_to_customs, custom_to_official
-    
-    def process_selected_bones(self, edit_bones, selected_bones, official_to_customs, custom_to_official):
-        """处理选中的骨骼
-        
-        Args:
-            edit_bones: 编辑模式下的骨骼集合
-            selected_bones: 选中的骨骼列表
-            official_to_customs: 官方骨骼到自定义骨骼的映射
-            custom_to_official: 自定义骨骼到官方骨骼的映射
-            
-        Returns:
-            set: 已处理的骨骼名称集合
-        """
-        processed_bones = set()
-        
-        # 先识别所有选中的官方骨骼
-        official_bones = [bone for bone in selected_bones if bone.name in current_bone_mapping]
-        
-        # 对于每个选中的官方骨骼，处理其他选中骨骼与之的关系
-        for official_bone in official_bones:
-            for target_bone in selected_bones:
-                if official_bone == target_bone:
-                    continue
-                
-                # 通过距离判断建立父子关系
-                if self.is_close_enough(official_bone, target_bone):
-                    self.set_parent_relationship(
-                        target_bone, official_bone, 
-                        "基于距离设置父子关系"
-                    )
-                    processed_bones.add(target_bone.name)
-        
-        # 处理未被处理的选中骨骼
-        for bone in selected_bones:
-            if bone.name in processed_bones:
-                continue
-                
-            # 尝试通过映射找到对应的官方骨骼
-            simplified_name = simplify_bonename(bone.name)
-            matching_official = None
-            
-            # 查找匹配的官方骨骼
-            for custom, official in custom_to_official.items():
-                if simplified_name == simplify_bonename(custom):
-                    matching_official = official
-                    break
-            
-            # 如果找到匹配的官方骨骼，设置父子关系
-            if matching_official:
-                parent_bone = edit_bones.get(matching_official)
-                if parent_bone:
-                    self.set_parent_relationship(
-                        bone, parent_bone, 
-                        "基于映射设置父子关系"
-                    )
-                    processed_bones.add(bone.name)
-        
-        return processed_bones
-    
-    def process_official_to_official(self, edit_bones, processed_bones=None):
-        """处理官方骨骼之间的父子关系
-        
-        Args:
-            edit_bones: 编辑模式下的骨骼集合
-            processed_bones: 已处理的骨骼名称集合
-            
-        Returns:
-            set: 更新后的已处理骨骼名称集合
-        """
-        if processed_bones is None:
-            processed_bones = set()
-            
-        # 处理官方骨骼之间的关系
-        for parent_name in current_bone_mapping:
-            parent_bone = edit_bones.get(parent_name)
-            if not parent_bone:
-                continue
-                
-            for child_name in current_bone_mapping:
-                # 跳过自身和已处理的骨骼
-                if (parent_name == child_name or 
-                    child_name in processed_bones):
-                    continue
-                    
-                child_bone = edit_bones.get(child_name)
-                if not child_bone:
-                    continue
-                
-                # 通过距离判断确定父子关系
-                if self.is_close_enough(parent_bone, child_bone):
-                    self.set_parent_relationship(
-                        child_bone, parent_bone, 
-                        "官方骨骼父子关系"
-                    )
-                    processed_bones.add(child_name)
-                    
-        return processed_bones
-    
-    def process_custom_to_official(self, edit_bones, official_to_customs, custom_to_official, processed_bones=None):
-        """处理自定义骨骼到官方骨骼的父子关系
-        
-        Args:
-            edit_bones: 编辑模式下的骨骼集合
-            official_to_customs: 官方骨骼到自定义骨骼的映射
-            custom_to_official: 自定义骨骼到官方骨骼的映射
-            processed_bones: 已处理的骨骼名称集合
-            
-        Returns:
-            set: 更新后的已处理骨骼名称集合
-        """
-        if processed_bones is None:
-            processed_bones = set()
-            
-        # 处理所有骨骼
-        for bone in edit_bones:
-            # 跳过已处理的骨骼和官方骨骼
-            if (bone.name in processed_bones or 
-                bone.name in current_bone_mapping):
-                continue
-                
-            simplified_name = simplify_bonename(bone.name)
-            assigned = False
-            
-            # 检查是否是某个官方骨骼的自定义对应骨骼
-            for official, customs in official_to_customs.items():
-                if any(simplified_name == simplify_bonename(custom) for custom in customs):
-                    official_bone = edit_bones.get(official)
-                    if official_bone:
-                        self.set_parent_relationship(
-                            bone, official_bone, 
-                            "自定义到官方映射"
-                        )
-                        processed_bones.add(bone.name)
-                        assigned = True
-                        break
-            
-            # 如果通过映射未找到父级，尝试通过距离判断
-            if not assigned:
-                for official in current_bone_mapping:
-                    official_bone = edit_bones.get(official)
-                    if not official_bone:
-                        continue
-                    
-                    if self.is_close_enough(official_bone, bone):
-                        self.set_parent_relationship(
-                            bone, official_bone, 
-                            "基于距离的自定义骨骼嫁接"
-                        )
-                        processed_bones.add(bone.name)
-                        break
-                        
-        return processed_bones
-
-    def process_all_bones(self, edit_bones, official_to_customs, custom_to_official):
-        """处理所有骨骼
-        
-        Args:
-            edit_bones: 编辑模式下的骨骼集合
-            official_to_customs: 官方骨骼到自定义骨骼的映射
-            custom_to_official: 自定义骨骼到官方骨骼的映射
-        """
-        # 处理骨骼，按照官方->官方，自定义->官方的顺序
-        processed_bones = set()
-        
-        # 第一步：处理官方骨骼之间的父子关系
-        processed_bones = self.process_official_to_official(edit_bones, processed_bones)
-        
-        # 第二步：处理自定义骨骼到官方骨骼的映射
-        processed_bones = self.process_custom_to_official(
-            edit_bones, official_to_customs, custom_to_official, processed_bones
-        )
-        
-        return processed_bones
-
-    def execute(self, context):
+    def invoke(self, context, event):
         # 步骤 1: 初始化和验证
         # 加载全局映射
         load_common_mapping()
@@ -908,44 +1053,67 @@ class L4D2_OT_GraftingOperator(bpy.types.Operator):
         if not obj or obj.type != 'ARMATURE':
             self.report({'ERROR'}, "未选中骨架对象或选中的不是骨架类型")
             return {'CANCELLED'}
-
-        # 步骤 2: 进入编辑模式并获取骨骼
+            
+        # 进入编辑模式并获取骨骼数量
         bpy.ops.object.mode_set(mode='EDIT')
         edit_bones = obj.data.edit_bones
         selected_bones = [bone for bone in edit_bones if bone.select]
+        selected_bones_count = len(selected_bones)
         
-        # 步骤 3: 构建映射关系
-        official_to_customs, custom_to_official = self.build_mappings()
+        # 构建映射关系
+        official_to_customs, custom_to_official = graft_build_mappings()
         
+        # 生成预览数据
+        mapping_preview = generate_grafting_preview(
+            edit_bones, selected_bones, official_to_customs, custom_to_official
+        )
+        
+        # 返回到对象模式
+        bpy.ops.object.mode_set(mode='OBJECT')
+            
         if not official_to_customs:
             self.report({'WARNING'}, "没有可用的骨骼映射关系，嫁接可能不完整")
-        
-        # 步骤 4: 根据选择状态处理骨骼
-        processed_count = 0
-        if selected_bones:
-            # 如果有选中的骨骼，只处理选中的骨骼
-            processed_bones = self.process_selected_bones(
-                edit_bones, selected_bones, official_to_customs, custom_to_official
-            )
-            processed_count = len(processed_bones)
-            status_message = f"已处理 {processed_count} 个选中骨骼"
-        else:
-            # 如果没有选中的骨骼，处理所有骨骼
-            processed_bones = self.process_all_bones(
-                edit_bones, official_to_customs, custom_to_official
-            )
-            processed_count = len(processed_bones)
-            status_message = f"已处理 {processed_count} 个骨骼"
-        
-        # 步骤 5: 返回到姿态模式并报告结果
-        bpy.ops.object.mode_set(mode='POSE')
-        
-        if processed_count > 0:
-            self.report({'INFO'}, f"骨骼嫁接完成。{status_message}")
-        else:
-            self.report({'WARNING'}, "未找到合适的骨骼进行嫁接，请检查骨骼位置和映射关系")
             
+        # 确定数据来源
+        mapping_source = "预设文件"
+        preset_name = context.scene.active_preset_name
+        preset_path = os.path.join(MAPPING_PRESETS_DIR, f"{preset_name}.json")
+        if preset_name == "None" or not os.path.exists(preset_path):
+            mapping_source = "内存数据"
+            
+        # 简化映射数据，只包含必要信息减少JSON序列化负担
+        mapping_data = {
+            'official_to_customs': official_to_customs,
+            'custom_to_official': custom_to_official,
+            'mapping_only': True
+        }
+        
+        # 序列化映射关系
+        try:
+            mapping_data_json = json.dumps(mapping_data)
+        except TypeError as e:
+            self.report({'ERROR'}, f"序列化映射数据失败: {str(e)}")
+            return {'CANCELLED'}
+            
+        # 调用确认面板
+        bpy.ops.l4d2.grafting_confirm(
+            'INVOKE_DEFAULT',
+            mapping_source=mapping_source,
+            preset_name=preset_name,
+            armature_name=obj.name,
+            mapping_count=len(current_bone_mapping),
+            common_count=len(current_common_mapping),
+            unique_count=len(current_unique_mapping),
+            selected_bones_count=selected_bones_count,
+            mapping_preview=mapping_preview,
+            mapping_data=mapping_data_json
+        )
+        
         return {'FINISHED'}
+        
+    def execute(self, context):
+        # 调用invoke方法来显示确认面板
+        return self.invoke(context, None)
 
 class L4D2_OT_RenameBonesOperator(bpy.types.Operator):
     bl_idname = "l4d2.rename_bones_operator"
@@ -1786,6 +1954,7 @@ classes = [
     BONE_UL_MappingList,
     L4D2_OT_RiggingConfirmOperator,  # 添加新类到注册列表
     L4D2_OT_GraftingOperator,
+    L4D2_OT_GraftingConfirmOperator,  # 添加确认面板类
     L4D2_OT_RiggingOperator,
     L4D2_OT_RenameBonesOperator,
     L4D2_OT_UnbindAndKeepShape,
