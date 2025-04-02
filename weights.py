@@ -38,7 +38,7 @@ class L4D2_PT_WeightsPanel(Panel):
             # 添加从骨骼添加按钮
             row = layout.row(align=True)
             row.operator("scene.add_from_selected_bones", text="从选中骨骼添加", icon="BONE_DATA")
-            row.operator("scene.clear_vertex_groups", text="", icon="X")
+            row.operator("scene.clear_vertex_groups", text="重置", icon="FILE_REFRESH")
             
             # 显示已添加的顶点组列表
             layout.template_list("L4D2_UL_VertexGroups", "", scene, "vertex_group_names", scene, "active_vertex_group_index", rows=3)
@@ -147,18 +147,99 @@ class L4D2_OT_SelectMeshObject(Operator):
     bl_idname = "wm.select_mesh_object"
     bl_label = "选择目标物体"
     
+    # 存储用户选择的物体名称
+    selected_object: StringProperty(default="")
+    
     def invoke(self, context, event):
+        # 使用invoke_props_dialog而不是invoke_popup以获得确认按钮
+        # 存储引用到全局变量，以便子操作符能够访问
+        bpy.types.Scene.current_select_dialog = self
         return context.window_manager.invoke_props_dialog(self, width=300)
     
     def draw(self, context):
         layout = self.layout
         layout.label(text="选择要处理的目标物体:")
+        
+        # 获取当前选中的物体名称
+        current_object = self.selected_object
+        
+        # 绘制物体列表
         for i, item in enumerate(context.scene.related_objects):
             row = layout.row()
-            op = row.operator("scene.set_target_mesh", text=item.name, icon="MESH_DATA")
+            
+            # 判断是否为当前选中物体
+            is_selected = (item.name == current_object)
+            
+            # 使用不同的图标和样式区分选中状态
+            if is_selected:
+                # 选中状态使用醒目的样式
+                row.alert = True  # 使用红色高亮
+                op = row.operator("wm.select_object_item", text="✓ " + item.name, icon="CHECKBOX_HLT")
+            else:
+                # 未选中状态使用普通样式
+                op = row.operator("wm.select_object_item", text="   " + item.name, icon="MESH_DATA")
+            
             op.object_name = item.name
     
     def execute(self, context):
+        # 清除全局引用
+        if hasattr(bpy.types.Scene, "current_select_dialog"):
+            del bpy.types.Scene.current_select_dialog
+            
+        # 如果已选择物体
+        if self.selected_object:
+            # 设置目标物体
+            context.scene.target_mesh_object = self.selected_object
+            
+            # 添加顶点组
+            armature = context.active_object
+            if armature and armature.type == 'ARMATURE' and armature.mode == 'POSE':
+                selected_bones = [bone.name for bone in armature.pose.bones if bone.bone.select]
+                mesh_obj = bpy.data.objects.get(self.selected_object)
+                if mesh_obj and selected_bones:
+                    self.add_vertex_groups_from_bones(context, mesh_obj, selected_bones)
+        
+        # 强制刷新所有区域的UI
+        for area in context.screen.areas:
+            area.tag_redraw()
+            
+        return {'FINISHED'}
+    
+    def add_vertex_groups_from_bones(self, context, mesh_obj, bone_names):
+        # 添加顶点组到列表
+        added = 0
+        not_found = 0
+        for bone_name in bone_names:
+            if bone_name in mesh_obj.vertex_groups:
+                # 检查是否已经在列表中
+                if not any(group.name == bone_name for group in context.scene.vertex_group_names):
+                    group_item = context.scene.vertex_group_names.add()
+                    group_item.name = bone_name
+                    added += 1
+            else:
+                not_found += 1
+        
+        if added > 0:
+            self.report({'INFO'}, f"已添加{added}个顶点组")
+        if not_found > 0:
+            self.report({'WARNING'}, f"{not_found}个骨骼名称在顶点组中不存在")
+
+class L4D2_OT_SelectObjectItem(Operator):
+    bl_idname = "wm.select_object_item"
+    bl_label = "选择物体项"
+    
+    object_name: StringProperty()
+    
+    def execute(self, context):
+        # 安全地获取父对话框操作符
+        if hasattr(bpy.types.Scene, "current_select_dialog"):
+            parent_op = bpy.types.Scene.current_select_dialog
+            parent_op.selected_object = self.object_name
+            
+            # 刷新UI以更新选中状态
+            for area in context.screen.areas:
+                area.tag_redraw()
+            
         return {'FINISHED'}
 
 class L4D2_OT_SetTargetMesh(Operator):
@@ -168,25 +249,21 @@ class L4D2_OT_SetTargetMesh(Operator):
     object_name: StringProperty()
     
     def execute(self, context):
+        # 只设置目标物体，不添加顶点组
         context.scene.target_mesh_object = self.object_name
-        
-        # 选择后添加顶点组
-        armature = context.active_object
-        if armature and armature.type == 'ARMATURE' and armature.mode == 'POSE':
-            selected_bones = [bone.name for bone in armature.pose.bones if bone.bone.select]
-            mesh_obj = bpy.data.objects.get(self.object_name)
-            if mesh_obj and selected_bones:
-                bpy.ops.scene.add_from_selected_bones()
-        
         return {'FINISHED'}
 
 class L4D2_OT_ClearVertexGroups(Operator):
     bl_idname = "scene.clear_vertex_groups"
     bl_label = "清空顶点组列表"
-    bl_description = "清空当前的顶点组列表"
+    bl_description = "清空当前的顶点组列表并重置目标物体选择，便于切换到新的骨架和物体"
     
     def execute(self, context):
+        # 清空顶点组列表
         context.scene.vertex_group_names.clear()
+        # 清空目标物体选择
+        context.scene.target_mesh_object = ""
+        self.report({'INFO'}, "已清空顶点组列表和目标物体选择")
         return {'FINISHED'}
 
 class L4D2_OT_RemoveVertexGroup(Operator):
@@ -327,6 +404,7 @@ classes = [
     # L4D2_PT_WeightsPanel,
     L4D2_OT_AddFromSelectedBones,
     L4D2_OT_SelectMeshObject,
+    L4D2_OT_SelectObjectItem,
     L4D2_OT_SetTargetMesh,
     L4D2_OT_ClearVertexGroups,
     L4D2_OT_RemoveVertexGroup,
