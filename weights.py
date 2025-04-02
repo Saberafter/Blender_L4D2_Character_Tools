@@ -1,12 +1,19 @@
 import bpy
-from bpy.props import StringProperty, CollectionProperty
-from bpy.types import PropertyGroup
+from bpy.props import StringProperty, CollectionProperty, PointerProperty
+from bpy.types import PropertyGroup, Operator, Panel, UIList
 
 class VertexGroupItem(PropertyGroup):
     name: StringProperty(name="顶点组名称")
 
-class L4D2_PT_WeightsPanel(bpy.types.Panel):
-    bl_label = "WeightsPanel"
+class L4D2_UL_VertexGroups(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            layout.label(text=item.name)
+            remove_op = layout.operator("scene.remove_vertex_group", text="", icon="X")
+            remove_op.index = data.vertex_group_names.values().index(item)
+
+class L4D2_PT_WeightsPanel(Panel):
+    bl_label = "权重编辑工具"
     bl_idname = "L4D2_PT_WeightsPanel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -16,70 +23,219 @@ class L4D2_PT_WeightsPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
 
-        # 添加一个可以展开/折叠的UI部分的开关
-        layout.prop(scene, "bl_VGE", text="Vertex Group Editing", icon="TRIA_DOWN" if scene.bl_VGE else "TRIA_RIGHT")
+        # 添加顶点组编辑的折叠开关
+        layout.prop(scene, "bl_VGE", text="顶点组编辑", icon="TRIA_DOWN" if scene.bl_VGE else "TRIA_RIGHT")
 
-        # 如果 bl_is_detailed 为 True，渲染详细控制的UI
+        # 如果折叠开关打开，显示详细控制
         if scene.bl_VGE:
-            row = layout.row()
-            # 合并和权重转移按钮
-            row.operator("scene.add_vertex_group", text="", icon="ADD")
-            row.operator("l4d2.process_vertex_groups", text="Merge vertex groups").operation = 'MERGE'
-            row.operator("l4d2.process_vertex_groups", text="Even weight").operation = 'EVEN_WEIGHT_TRANSFER'
-            row.operator("l4d2.process_vertex_groups", text="Bisect weight").operation = 'WEIGHT_TRANSFER'
-            col = layout.column()
+            # 显示当前目标物体
+            if scene.target_mesh_object:
+                obj = bpy.data.objects.get(scene.target_mesh_object)
+                if obj:
+                    row = layout.row()
+                    row.label(text=f"目标物体: {obj.name}")
             
-            # 创建顶点组列表
-            for idx, group in enumerate(scene.vertex_group_names):
-                row = col.row()
-                row.prop_search(group, "name", context.active_object, "vertex_groups", text="")
-                remove_op = row.operator("scene.remove_vertex_group", text="", icon="X")
-                remove_op.index = idx
+            # 添加从骨骼添加按钮
+            row = layout.row(align=True)
+            row.operator("scene.add_from_selected_bones", text="从选中骨骼添加", icon="BONE_DATA")
+            row.operator("scene.clear_vertex_groups", text="", icon="X")
+            
+            # 显示已添加的顶点组列表
+            layout.template_list("L4D2_UL_VertexGroups", "", scene, "vertex_group_names", scene, "active_vertex_group_index", rows=3)
+            
+            # 权重处理按钮
+            if len(scene.vertex_group_names) > 0:
+                row = layout.row(align=True)
+                row.operator("l4d2.process_vertex_groups", text="合并顶点组").operation = 'MERGE'
+                row.operator("l4d2.process_vertex_groups", text="均分权重").operation = 'EVEN_WEIGHT_TRANSFER'
+                if len(scene.vertex_group_names) >= 3:
+                    row = layout.row()
+                    row.operator("l4d2.process_vertex_groups", text="二分权重").operation = 'WEIGHT_TRANSFER'
+            else:
+                layout.label(text="请先添加顶点组")
 
-class L4D2_OT_AddVertexGroup(bpy.types.Operator):
-    bl_idname = "scene.add_vertex_group"
-    bl_label = "Add Vertex Group"
-    bl_description = "Add a vertex group field to select the vertex group to be processed by the current model"
-
+class L4D2_OT_AddFromSelectedBones(Operator):
+    bl_idname = "scene.add_from_selected_bones"
+    bl_label = "从选中骨骼添加"
+    bl_description = "从姿势模式下选中的骨骼自动添加对应的顶点组"
+    
     def execute(self, context):
-        context.scene.vertex_group_names.add()
+        # 检查是否在pose mode
+        if not (context.active_object and context.active_object.type == 'ARMATURE' 
+                and context.active_object.mode == 'POSE'):
+            self.report({'WARNING'}, "请在姿势模式下选择骨骼")
+            return {'CANCELLED'}
+            
+        # 获取选中的骨骼
+        armature = context.active_object
+        selected_bones = [bone.name for bone in armature.pose.bones if bone.bone.select]
+        if not selected_bones:
+            self.report({'WARNING'}, "未选择任何骨骼")
+            return {'CANCELLED'}
+        
+        # 获取关联的网格物体
+        related_objects = self.get_related_mesh_objects(armature)
+        if not related_objects:
+            self.report({'WARNING'}, "未找到与骨架关联的网格物体")
+            return {'CANCELLED'}
+        
+        # 处理物体选择
+        mesh_obj = None
+        if len(related_objects) == 1:
+            # 如果只有一个物体，直接使用
+            mesh_obj = related_objects[0]
+            context.scene.target_mesh_object = mesh_obj.name
+        else:
+            # 如果有多个物体，优先使用已保存的物体
+            if context.scene.target_mesh_object in [obj.name for obj in related_objects]:
+                mesh_obj = bpy.data.objects.get(context.scene.target_mesh_object)
+            else:
+                # 显示选择对话框
+                context.scene.related_objects.clear()
+                for obj in related_objects:
+                    item = context.scene.related_objects.add()
+                    item.name = obj.name
+                bpy.ops.wm.select_mesh_object('INVOKE_DEFAULT')
+                return {'FINISHED'}
+        
+        # 如果成功获取物体，添加顶点组
+        if mesh_obj:
+            self.add_vertex_groups_from_bones(context, mesh_obj, selected_bones)
+            return {'FINISHED'}
+        else:
+            return {'CANCELLED'}
+    
+    def add_vertex_groups_from_bones(self, context, mesh_obj, bone_names):
+        # 添加顶点组到列表
+        added = 0
+        not_found = 0
+        for bone_name in bone_names:
+            if bone_name in mesh_obj.vertex_groups:
+                # 检查是否已经在列表中
+                if not any(group.name == bone_name for group in context.scene.vertex_group_names):
+                    group_item = context.scene.vertex_group_names.add()
+                    group_item.name = bone_name
+                    added += 1
+            else:
+                not_found += 1
+        
+        if added > 0:
+            self.report({'INFO'}, f"已添加{added}个顶点组")
+        if not_found > 0:
+            self.report({'WARNING'}, f"{not_found}个骨骼名称在顶点组中不存在")
+    
+    def get_related_mesh_objects(self, armature):
+        """获取与骨架关联的所有网格物体"""
+        related_objects = []
+        
+        # 检查子对象
+        for child in armature.children:
+            if child.type == 'MESH':
+                related_objects.append(child)
+        
+        # 检查具有Armature修改器的物体
+        for obj in bpy.context.view_layer.objects:
+            if obj.type == 'MESH':
+                for modifier in obj.modifiers:
+                    if modifier.type == 'ARMATURE' and modifier.object == armature:
+                        if obj not in related_objects:
+                            related_objects.append(obj)
+        
+        return related_objects
+
+class L4D2_OT_SelectMeshObject(Operator):
+    bl_idname = "wm.select_mesh_object"
+    bl_label = "选择目标物体"
+    
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self, width=300)
+    
+    def draw(self, context):
+        layout = self.layout
+        layout.label(text="选择要处理的目标物体:")
+        for i, item in enumerate(context.scene.related_objects):
+            row = layout.row()
+            op = row.operator("scene.set_target_mesh", text=item.name, icon="MESH_DATA")
+            op.object_name = item.name
+    
+    def execute(self, context):
         return {'FINISHED'}
 
-class L4D2_OT_RemoveVertexGroup(bpy.types.Operator):
+class L4D2_OT_SetTargetMesh(Operator):
+    bl_idname = "scene.set_target_mesh"
+    bl_label = "设置目标物体"
+    
+    object_name: StringProperty()
+    
+    def execute(self, context):
+        context.scene.target_mesh_object = self.object_name
+        
+        # 选择后添加顶点组
+        armature = context.active_object
+        if armature and armature.type == 'ARMATURE' and armature.mode == 'POSE':
+            selected_bones = [bone.name for bone in armature.pose.bones if bone.bone.select]
+            mesh_obj = bpy.data.objects.get(self.object_name)
+            if mesh_obj and selected_bones:
+                bpy.ops.scene.add_from_selected_bones()
+        
+        return {'FINISHED'}
+
+class L4D2_OT_ClearVertexGroups(Operator):
+    bl_idname = "scene.clear_vertex_groups"
+    bl_label = "清空顶点组列表"
+    bl_description = "清空当前的顶点组列表"
+    
+    def execute(self, context):
+        context.scene.vertex_group_names.clear()
+        return {'FINISHED'}
+
+class L4D2_OT_RemoveVertexGroup(Operator):
     bl_idname = "scene.remove_vertex_group"
-    bl_label = "Remove Vertex Group"
-    bl_description = "Remove this vertex group field"
-
+    bl_label = "移除顶点组"
+    bl_description = "从列表中移除此顶点组"
+    
     index: bpy.props.IntProperty()
-
+    
     def execute(self, context):
         context.scene.vertex_group_names.remove(self.index)
         return {'FINISHED'}
 
-class L4D2_OT_ProcessVertexGroups(bpy.types.Operator):
+class L4D2_OT_ProcessVertexGroups(Operator):
     bl_idname = "l4d2.process_vertex_groups"
-    bl_label = "Process Vertex Group"
-    bl_description = "The following functions are performed only on the vertex groups within the columns created with the + button:\nMerge vertex groups: Merge the weights of the vertex groups after the first column into the first column vertex group and delete these vertex groups(careful).\nEven weight: Evenly distribute the weights of the first column vertex group to the other column vertex groups.\nBisect weight: Using the X-pos of the vertices in the first column vertex group as a reference, divide the weights to the left and right. Assign the weights of the left half to the vertex group in the second column, and the weights of the right half to the vertex group in the third column"
-
-    operation: bpy.props.StringProperty()  # 添加操作类型属性
-
+    bl_label = "处理顶点组"
+    bl_description = "执行以下功能仅限于使用+按钮创建的列内的顶点组:\n合并顶点组:将第一列后的顶点组的权重合并到第一列顶点组中，并删除这些顶点组(小心)。\n均分权重:将第一列顶点组的权重平均分配给其他列顶点组。\n二分权重:以第一列顶点组中顶点的X-pos为参考，将权重分为左右两半。将左半部分的权重分配给第二列顶点组，将右半部分的权重分配给第三列顶点组"
+    
+    operation: bpy.props.StringProperty()
+    
     def execute(self, context):
-        obj = context.active_object
-        group_names = [group.name for group in context.scene.vertex_group_names if group.name]
-
+        scene = context.scene
+        if not scene.target_mesh_object:
+            self.report({'WARNING'}, "未设置目标物体")
+            return {'CANCELLED'}
+            
+        obj = bpy.data.objects.get(scene.target_mesh_object)
+        if not obj or obj.type != 'MESH':
+            self.report({'WARNING'}, "目标物体无效或不是网格物体")
+            return {'CANCELLED'}
+        
+        group_names = [group.name for group in scene.vertex_group_names if group.name]
+        
         if len(group_names) < 2:
             self.report({'WARNING'}, "请至少选择两个顶点组")
             return {'CANCELLED'}
-
+        
         if self.operation == 'MERGE':
             self.merge_vertex_groups(obj, group_names)
         elif self.operation == 'EVEN_WEIGHT_TRANSFER':
             self.even_weight_transfer(context, obj, group_names)
         elif self.operation == 'WEIGHT_TRANSFER':
+            if len(group_names) < 3:
+                self.report({'WARNING'}, "二分权重需要至少选择三个顶点组")
+                return {'CANCELLED'}
             self.weight_transfer(context, obj, group_names)
-
+        
         return {'FINISHED'}
-
+    
     def merge_vertex_groups(self, obj, group_names):
         target_group = obj.vertex_groups[group_names[0]]
         for group_name in group_names[1:]:
@@ -93,12 +249,9 @@ class L4D2_OT_ProcessVertexGroups(bpy.types.Operator):
                     if weight > 0.0:
                         target_group.add([vertex.index], weight, 'ADD')
                 obj.vertex_groups.remove(group)
+        self.report({'INFO'}, "顶点组合并完成")
 
     def even_weight_transfer(self, context, obj, group_names):
-        if len(group_names) < 2:
-            self.report({'WARNING'}, "请至少选择两个顶点组")
-            return
-
         middle_group_name = group_names[0]
         target_groups = group_names[1:]
 
@@ -121,12 +274,7 @@ class L4D2_OT_ProcessVertexGroups(bpy.types.Operator):
         else:
             self.report({'WARNING'}, "一个或多个指定的顶点组不存在")
 
-    
     def weight_transfer(self, context, obj, group_names):
-        if len(group_names) < 3:
-            self.report({'WARNING'}, "需要至少选择三个顶点组")
-            return
-
         middle_group_name = group_names[0]
         left_group_name = group_names[1]
         right_group_name = group_names[2]
@@ -139,7 +287,14 @@ class L4D2_OT_ProcessVertexGroups(bpy.types.Operator):
             left_group_index = obj.vertex_groups[left_group_name].index
             right_group_index = obj.vertex_groups[right_group_name].index
             
-            x_coords = [obj.data.vertices[vert.index].co.x for vert in obj.data.vertices for group in vert.groups if group.group == middle_group_index]
+            # 收集所有受中间顶点组影响的顶点的X坐标
+            x_coords = []
+            for vert in obj.data.vertices:
+                for group in vert.groups:
+                    if group.group == middle_group_index and group.weight > 0:
+                        x_coords.append(vert.co.x)
+                        break
+            
             if len(x_coords) == 0:
                 self.report({'INFO'}, "没有找到中间顶点组的顶点")
                 return
@@ -149,23 +304,34 @@ class L4D2_OT_ProcessVertexGroups(bpy.types.Operator):
             for vert in obj.data.vertices:
                 for group in vert.groups:
                     if group.group == middle_group_index:
-                        weight = group.weight / 2
+                        weight = group.weight
                         obj.vertex_groups[middle_group_index].remove([vert.index])
-                        if obj.data.vertices[vert.index].co.x < center_line:
+                        if vert.co.x < center_line:
                             obj.vertex_groups[right_group_index].add([vert.index], weight, 'ADD')
                         else:
                             obj.vertex_groups[left_group_index].add([vert.index], weight, 'ADD')
+            
+            self.report({'INFO'}, "权重二分完成")
         else:
             self.report({'WARNING'}, "一个或多个指定的顶点组不存在")
 
+# 用于存储关联物体列表的属性类
+class RelatedObjectItem(PropertyGroup):
+    name: StringProperty()
 
+# 注册类列表
 classes = [
     VertexGroupItem,
-    L4D2_OT_AddVertexGroup,
+    RelatedObjectItem,
+    L4D2_UL_VertexGroups,
+    # L4D2_PT_WeightsPanel,
+    L4D2_OT_AddFromSelectedBones,
+    L4D2_OT_SelectMeshObject,
+    L4D2_OT_SetTargetMesh,
+    L4D2_OT_ClearVertexGroups,
     L4D2_OT_RemoveVertexGroup,
-    L4D2_OT_ProcessVertexGroups,
+    L4D2_OT_ProcessVertexGroups
 ]
-
 
 def register():
     for cls in classes:
@@ -177,9 +343,15 @@ def register():
     
     try:
         bpy.types.Scene.vertex_group_names = CollectionProperty(type=VertexGroupItem)
+        bpy.types.Scene.active_vertex_group_index = bpy.props.IntProperty(default=0)
+        bpy.types.Scene.target_mesh_object = StringProperty(
+            name="目标网格物体",
+            description="用于添加顶点组的目标网格物体"
+        )
+        bpy.types.Scene.related_objects = CollectionProperty(type=RelatedObjectItem)
         bpy.types.Scene.bl_VGE = bpy.props.BoolProperty(
-            name="Vertex Group Editing",
-            description="Vertex Group Editing",
+            name="顶点组编辑",
+            description="顶点组编辑",
             default=False
         )
     except Exception as e:
@@ -187,7 +359,7 @@ def register():
         pass
 
 def unregister():
-    for cls in classes:
+    for cls in reversed(classes):
         try:
             bpy.utils.unregister_class(cls)
         except Exception as e:
@@ -196,6 +368,9 @@ def unregister():
 
     try:
         del bpy.types.Scene.vertex_group_names
+        del bpy.types.Scene.active_vertex_group_index
+        del bpy.types.Scene.target_mesh_object
+        del bpy.types.Scene.related_objects
         del bpy.types.Scene.bl_VGE
     except Exception as e:
         # 抑制删除属性错误的消息
