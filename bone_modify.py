@@ -332,34 +332,37 @@ class MappingDataManager:
     def load_preset_data(context, preset_name):
         """从预设文件加载数据并更新全局变量和Blender属性"""
         global current_bone_mapping, current_unique_mapping, current_common_mapping
-        
+
         preset_path = os.path.join(MAPPING_PRESETS_DIR, f"{preset_name}.json")
         if not os.path.exists(preset_path):
             return False, f"预设 {preset_name} 不存在!"
-            
+
         try:
             with open(preset_path, 'r', encoding='utf-8') as f:
                 preset_data = json.load(f)
-            
+
             # 更新全局变量
             current_bone_mapping = preset_data.get('official_mapping', {})
             current_unique_mapping = preset_data.get('unique_mapping', {})
             load_common_mapping()  # 加载通用映射
-            
-            # 更新Blender属性
+
+            # --- 更新Blender属性 ---
+            # 加载骨骼轴控制信息（如果有）
+            bone_axis_controls = preset_data.get('bone_axis_controls', {})
+
+            # 更新 main 和 temp 数据
             for prefix in ['main', 'temp']:
                 data = getattr(context.scene, f'mapping_{prefix}_data')
                 setattr(data, f'{prefix}_official_mapping', json.dumps(current_bone_mapping))
                 setattr(data, f'{prefix}_unique_mapping', json.dumps(current_unique_mapping))
                 setattr(data, f'{prefix}_common_mapping', json.dumps(current_common_mapping))
-            
+                # 特别处理 main_axis_controls
+                if prefix == 'main':
+                    setattr(data, f'{prefix}_axis_controls', json.dumps(bone_axis_controls))
+
             # 更新当前活动预设名称
             context.scene.active_preset_name = preset_name
-            
-            # 加载骨骼轴控制信息（如果有）
-            bone_axis_controls = preset_data.get('bone_axis_controls', {})
-            context.scene['bone_axis_controls'] = json.dumps(bone_axis_controls)
-            
+
             # 更新映射列表中的轴控制设置
             if context.scene.mapping_list:
                 for item in context.scene.mapping_list:
@@ -368,7 +371,7 @@ class MappingDataManager:
                         item.use_x = axis_control.get('use_x', True)
                         item.use_y = axis_control.get('use_y', True)
                         item.use_z = axis_control.get('use_z', True)
-            
+
             return True, None
         except Exception as e:
             return False, str(e)
@@ -379,41 +382,28 @@ class MappingDataManager:
         """保存当前映射到预设文件"""
         if not preset_name:
             return False
-            
+
         preset_path = os.path.join(MAPPING_PRESETS_DIR, f"{preset_name}.json")
         try:
-            # 从temp_data获取当前映射数据
-            temp_data = MappingDataManager.get_temp_data(context)
-            if not temp_data:
+            # 从 maindata 获取当前应用的映射数据和轴控制
+            maindata = context.scene.mapping_main_data
+            try:
+                official_mapping = json.loads(maindata.main_official_mapping)
+                unique_mapping = json.loads(maindata.main_unique_mapping)
+                bone_axis_controls = json.loads(maindata.main_axis_controls)
+                # common_mapping is saved globally, not per preset.
+            except (json.JSONDecodeError, TypeError) as e:
+                print(f"Error parsing maindata for saving preset: {e}")
                 return False
-            
-            # 获取骨骼轴控制信息
-            bone_axis_controls = {}
-            if 'bone_axis_controls' in context.scene:
-                try:
-                    bone_axis_controls = json.loads(context.scene['bone_axis_controls'])
-                except (json.JSONDecodeError, TypeError):
-                    # 如果解析失败，使用空字典
-                    bone_axis_controls = {}
-            
-            # 如果没有从场景中获取到，则从映射列表中获取
-            if not bone_axis_controls:
-                for item in context.scene.mapping_list:
-                    if item.official_bone:
-                        bone_axis_controls[item.official_bone] = {
-                            'use_x': item.use_x,
-                            'use_y': item.use_y,
-                            'use_z': item.use_z
-                        }
-            
+
             # 准备预设数据
             preset_data = {
                 "name": preset_name,
-                "official_mapping": temp_data['official'],
-                "unique_mapping": temp_data['unique'],
+                "official_mapping": official_mapping,
+                "unique_mapping": unique_mapping,
                 "bone_axis_controls": bone_axis_controls
             }
-            
+
             # 保存到预设文件
             with open(preset_path, 'w', encoding='utf-8') as f:
                 json.dump(preset_data, f, indent=4, ensure_ascii=False)
@@ -1654,6 +1644,10 @@ class MappingData(bpy.types.PropertyGroup):
     main_common_mapping: bpy.props.StringProperty(
         default=json.dumps(bone_dict.common_mapping)
     )
+    main_axis_controls: bpy.props.StringProperty(
+        description="Stores the axis control settings corresponding to the main data",
+        default="{}"
+    )
 
 class TempMappingData(bpy.types.PropertyGroup):
     temp_official_mapping: bpy.props.StringProperty(
@@ -1949,18 +1943,111 @@ class MAPPING_MT_CustomBonesMenu(bpy.types.Menu):
 
 # UI列表
 class BONE_UL_MappingList(bpy.types.UIList):
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+
+        # --- Get main data for comparison ---
+        main_data = context.scene.mapping_main_data
+        # --- Initialize change flags ---
+        official_changed = False
+        common_changed = False
+        custom_changed = False
+        axis_changed = False
+
+        try:
+            # --- Load main data parts needed for comparison ---
+            main_official = json.loads(main_data.main_official_mapping)
+            main_unique = json.loads(main_data.main_unique_mapping)
+            main_common = json.loads(main_data.main_common_mapping)
+            main_axis = json.loads(main_data.main_axis_controls)
+
+            current_customs_set = set(bone.name for bone in item.custom_bones)
+
+            # --- Perform Comparisons and Set Flags ---
+
+            # 1. Compare Official -> Common link
+            if item.official_bone:
+                main_common_for_official = main_official.get(item.official_bone)
+                if item.official_bone not in main_official:
+                    # Official bone itself is added/removed/renamed in UI vs main
+                    official_changed = True
+                elif not main_common_for_official:
+                     # Official bone exists in main, but has no common link there. If UI has one, it's a change.
+                    if item.common_bone:
+                        official_changed = True # Or potentially common_changed? Let's stick to official change for link modification.
+                elif item.common_bone not in main_common_for_official:
+                     # Official bone exists, common link exists in main, but UI has different common bone linked.
+                     # Check if the common bone itself exists in main common/unique to differentiate
+                     if item.common_bone not in main_common and item.common_bone not in main_unique:
+                         common_changed = True # Common bone name itself is new/changed
+                     else:
+                         official_changed = True # Link changed, but common bone name exists elsewhere
+
+            # 2. Compare Common/Unique -> Custom link
+            if item.common_bone:
+                main_customs_list = main_common.get(item.common_bone, main_unique.get(item.common_bone))
+                if main_customs_list is None:
+                    # Common bone exists in UI but not in main common or unique
+                    if item.common_bone in main_common or item.common_bone in main_unique:
+                        # This case means the common bone *exists* in main, but linked customs are gone/moved. Treat as custom change.
+                        if current_customs_set: # If UI has customs but main doesn't link this common bone to any
+                             custom_changed = True
+                    else:
+                         # Common bone name itself is new
+                         common_changed = True
+                         # Do not mark custom_changed here just because the common bone name is new.
+                         # custom_changed should only be true if the list itself differs from main.
+                else:
+                    # Common bone exists in main, compare custom lists
+                    if current_customs_set != set(main_customs_list):
+                        custom_changed = True
+
+            # 3. Compare Axis Controls
+            if item.official_bone:
+                 main_axis_control = main_axis.get(item.official_bone)
+                 item_props = item.bl_rna.properties
+                 # Get defaults (assuming default=True, except Pelvis Z)
+                 # Note: Accessing default via bl_rna might be slow in draw loop. Hardcoding True is safer if that's the intended default.
+                 default_x = item_props['use_x'].default if 'use_x' in item_props else True
+                 default_y = item_props['use_y'].default if 'use_y' in item_props else True
+                 default_z = item_props['use_z'].default if 'use_z' in item_props else True # Default is True
+
+                 if main_axis_control is None:
+                    # Compare item's current state against its *own* defaults
+                    # We assume if it's not in main_axis, the main state *is* the default state.
+                    if item.use_x != default_x or item.use_y != default_y or item.use_z != default_z:
+                        axis_changed = True
+                 elif (item.use_x != main_axis_control.get('use_x', default_x) or
+                         item.use_y != main_axis_control.get('use_y', default_y) or
+                         item.use_z != main_axis_control.get('use_z', default_z)):
+                     axis_changed = True
+
+        except (json.JSONDecodeError, TypeError) as e:
+            print(f"Error during comparison in draw_item: {e}")
+            # Decide how to handle error, maybe default to no highlight
+
+        # --- Apply highlighting to containers ---
+        row = layout.row(align=True)
+        # Default row alert to axis_changed IF it's the ONLY change (for tabs without explicit axis controls)
+        # This will be overridden by more specific alerts below if other parts changed.
+        # row.alert = axis_changed and not official_changed and not common_changed and not custom_changed
+
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            row = layout.row(align=True)
-            
+
             # 根据当前标签页显示不同的内容
             if context.scene.mapping_ui_tab == 'ALL':
                 # 主布局分为三部分：官方骨骼、通用骨骼、自定义骨骼和按钮
-                split = row.split(factor=0.45)  # 官方骨骼占40%
                 
+                # 序号列 - 显示从1开始的序号
+                index_col = row.column()
+                index_col.scale_x = 0.3  # 设置序号列宽度
+                index_col.label(text=f"{index+1}")
+                
+                split = row.split(factor=0.45)  # 官方骨骼占40%
+
                 # 左侧：官方骨骼名称和搜索/编辑按钮
                 left_row = split.row(align=True)
-                
+                left_row.alert = official_changed # Highlight this part if official link changed
+
                 # 根据搜索模式显示不同的输入方式
                 if context.scene.use_search_mode:
                     # 搜索模式：从当前骨架中选择
@@ -1971,35 +2058,38 @@ class BONE_UL_MappingList(bpy.types.UIList):
                 else:
                     # 编辑模式：手动输入
                     left_row.prop(item, "official_bone", text="", emboss=False)
-                
+
                 # 搜索/编辑切换按钮
-                left_row.operator("mapping.toggle_search_mode", text="", 
+                left_row.operator("mapping.toggle_search_mode", text="",
                                 icon='VIEWZOOM' if context.scene.use_search_mode else 'GREASEPENCIL')
-                
+
                 # 右侧部分（通用骨骼、自定义骨骼和按钮）
                 right_side = split.split(factor=0.4)  # 通用骨骼占右侧40%
-                
+
                 # 中间：通用骨骼名称
                 middle_row = right_side.row(align=True)
+                middle_row.alert = common_changed # Highlight this part if common name changed
                 # 箭头和通用骨骼名称
                 arrow_row = middle_row.row(align=True)
                 arrow_row.scale_x = 0.3  # 缩小箭头占用的空间
                 arrow_row.label(text="→")
                 name_row = middle_row.row()
                 name_row.prop(item, "common_bone", text="", emboss=False)
-                
+
                 # 右侧：自定义骨骼和按钮
                 right_row = right_side.row(align=True)
                 # 第二个箭头
                 arrow_row = right_row.row(align=True)
                 arrow_row.scale_x = 0.3
+                arrow_row.alert = custom_changed  # 与自定义骨骼保持同步高亮
                 arrow_row.label(text="→")
-                
+
                 # 自定义骨骼下拉菜单和按钮组
                 custom_group = right_row.row(align=True)
+                custom_group.alert = custom_changed # Highlight this part if custom list changed
                 # 获取当前条目在列表中的索引
                 current_index = data.mapping_list.values().index(item)
-                
+
                 # 显示下拉菜单
                 custom_group.context_pointer_set("active_item", item)
                 # 修改这里以显示首选骨骼
@@ -2008,35 +2098,49 @@ class BONE_UL_MappingList(bpy.types.UIList):
                     "MAPPING_MT_custom_bones_menu",
                     text=display_name
                 )
-                
+
                 # 添加[+]和[-]按钮，设置emboss=True以显示灰色背景
                 custom_group.operator("mapping.add_custom_bone", text="", icon='ADD', emboss=True).list_index = current_index
                 custom_group.operator("mapping.remove_custom_bone", text="", icon='REMOVE', emboss=True).list_index = current_index
-                
+
                 # 分隔的删除映射按钮，设置emboss=True以显示灰色背景
-                row.operator("mapping.remove_mapping", text="", icon='X', emboss=True).list_index = current_index
-            
-            
+                delete_button_row = row.row(align=True) # Use main row for this button
+                delete_button_row.operator("mapping.remove_mapping", text="", icon='X', emboss=True).list_index = current_index
+
+                # Apply overall row alert if ONLY axis changed
+                if axis_changed and not official_changed and not common_changed and not custom_changed:
+                     row.alert = True
+
+
             elif context.scene.mapping_ui_tab == 'UNIQUE' or context.scene.mapping_ui_tab == 'COMMON':
                 # 主布局分为两部分：通用骨骼和自定义骨骼
-                split = row.split(factor=0.45)  # 通用骨骼占40%
                 
+                # 序号列 - 显示从1开始的序号
+                index_col = row.column()
+                index_col.scale_x = 0.3  # 设置序号列宽度
+                index_col.label(text=f"{index+1}")
+                
+                split = row.split(factor=0.45)  # 通用骨骼占40%
+
                 # 左侧：通用骨骼名称
                 left_row = split.row(align=True)
+                left_row.alert = common_changed
                 left_row.prop(item, "common_bone", text="", emboss=False)
-                
+
                 # 右侧：自定义骨骼和按钮
                 right_row = split.row(align=True)
                 # 箭头
                 arrow_row = right_row.row(align=True)
                 arrow_row.scale_x = 0.3
+                arrow_row.alert = custom_changed  # 与自定义骨骼保持同步高亮
                 arrow_row.label(text="→")
-                
+
                 # 自定义骨骼下拉菜单和按钮组
                 custom_group = right_row.row(align=True)
+                custom_group.alert = custom_changed
                 # 获取当前条目在列表中的索引
                 current_index = data.mapping_list.values().index(item)
-                
+
                 # 显示下拉菜单
                 custom_group.context_pointer_set("active_item", item)
                 # 修改这里以显示首选骨骼
@@ -2045,20 +2149,28 @@ class BONE_UL_MappingList(bpy.types.UIList):
                     "MAPPING_MT_custom_bones_menu",
                     text=display_name
                 )
-                
+
                 # 添加[+]和[-]按钮，设置emboss=True以显示灰色背景
                 custom_group.operator("mapping.add_custom_bone", text="", icon='ADD', emboss=True).list_index = current_index
                 custom_group.operator("mapping.remove_custom_bone", text="", icon='REMOVE', emboss=True).list_index = current_index
-                
+
                 # 分隔的删除映射按钮，设置emboss=True以显示灰色背景
-                row.operator("mapping.remove_mapping", text="", icon='X', emboss=True).list_index = current_index
+                delete_button_row = row.row(align=True) # Use main row
+                delete_button_row.operator("mapping.remove_mapping", text="", icon='X', emboss=True).list_index = current_index
 
             elif context.scene.mapping_ui_tab == 'AXIS':
                  # 轴控制标签页布局
+                 row.alert = axis_changed # Highlight the whole row if axis changed
+
+                 # 序号列 - 显示从1开始的序号
+                 index_col = row.column()
+                 index_col.scale_x = 0.3  # 设置序号列宽度
+                 index_col.label(text=f"{index+1}")
+                 
                  # 左侧：官方骨骼名称
                  split = row.split(factor=0.6) # 60% for name
-                 split.prop(item, "official_bone", text="", emboss=False) # Allow editing? Or just label? Use label for now.
-                 # split.label(text=item.official_bone) # Use label if not editable
+                 # split.prop(item, "official_bone", text="", emboss=False) # Allow editing? Or just label? Use label for now.
+                 split.label(text=item.official_bone) # Use label if not editable
 
                  # 右侧：XYZ轴控制
                  axis_col = split.column()
@@ -2076,9 +2188,13 @@ class BONE_UL_MappingList(bpy.types.UIList):
             layout.alignment = 'CENTER'
             if context.scene.mapping_ui_tab == 'AXIS':
                  layout.label(text=item.official_bone)
+                 # Apply alert to the grid item container (layout itself)
+                 layout.alert = axis_changed
             else:
                  # Keep existing GRID logic for other tabs if any
                  layout.label(text=item.official_bone) # Default or adapt as needed
+                 # Apply combined alert for grid view? Or keep simple?
+                 layout.alert = official_changed or common_changed or custom_changed or axis_changed
 
     def filter_items(self, context, data, propname):
         items = getattr(data, propname)
@@ -2184,55 +2300,56 @@ class MAPPING_OT_ApplyChanges(bpy.types.Operator):
         global current_bone_mapping, current_unique_mapping, current_common_mapping
         print("开始应用更改...")
         scene = context.scene
-        
-        # 保存当前UI列表内容到temp_data
-        print("保存当前UI列表内容到temp_data...")
-        if not MappingDataManager.save_ui_list(context):
-            self.report({'ERROR'}, "保存UI列表到temp_data失败")
-            return {'CANCELLED'}
-        
-        # 获取temp_data中的映射
-        temp_data = MappingDataManager.get_temp_data(context)
-        if not temp_data:
-            self.report({'ERROR'}, "获取temp_data失败")
-            return {'CANCELLED'}
-        
-        # 更新全局变量
-        print("更新全局变量...")
-        current_bone_mapping = temp_data['official']
-        current_unique_mapping = temp_data['unique']
-        current_common_mapping = temp_data['common']
-        
-        # 从映射列表获取XYZ轴控制，存储到自定义属性
-        # 创建一个字典，存储每个官方骨骼的XYZ轴控制信息
-        bone_axis_controls = {}
+
+        # Capture current axis controls from UI list *before* saving mappings
+        current_ui_axis_controls = {}
         for item in scene.mapping_list:
             if item.official_bone:
-                bone_axis_controls[item.official_bone] = {
+                current_ui_axis_controls[item.official_bone] = {
                     'use_x': item.use_x,
                     'use_y': item.use_y,
                     'use_z': item.use_z
                 }
-        
-        # 将轴控制信息存储到场景自定义属性中
-        scene['bone_axis_controls'] = json.dumps(bone_axis_controls)
-        
-        print("全局变量已更新:")
-        print(f"current_bone_mapping: {current_bone_mapping}")
-        print(f"current_unique_mapping: {current_unique_mapping}")
-        print(f"current_common_mapping: {current_common_mapping}")
-        print(f"bone_axis_controls: {bone_axis_controls}")
-        
-        # 保存到common_mapping文件
+
+        # 1. 保存当前UI列表内容到temp_data (确保所有标签页的修改都合并)
+        print("保存当前UI列表修改到temp_data...")
+        if not MappingDataManager.save_ui_list(context):
+            self.report({'ERROR'}, "保存UI列表到temp_data失败")
+            return {'CANCELLED'}
+
+        # 2. 获取temp_data中的映射数据 (这是包含了所有UI修改的工作副本)
+        temp_data = MappingDataManager.get_temp_data(context)
+        if not temp_data:
+            self.report({'ERROR'}, "获取temp_data失败")
+            return {'CANCELLED'}
+
+        # 4. 将 temp_data 和 UI中的轴控制 更新到 maindata (中间状态)
+        print("更新 maindata...")
+        maindata = context.scene.mapping_main_data
+        maindata.main_official_mapping = json.dumps(temp_data['official'])
+        maindata.main_unique_mapping = json.dumps(temp_data['unique'])
+        maindata.main_common_mapping = json.dumps(temp_data['common'])
+        # Use the axis controls captured *before* save_ui_list
+        maindata.main_axis_controls = json.dumps(current_ui_axis_controls)
+
+        # 5. 从 maindata 更新全局变量
+        print("从 maindata 更新全局变量...")
+        current_bone_mapping = json.loads(maindata.main_official_mapping)
+        current_unique_mapping = json.loads(maindata.main_unique_mapping)
+        current_common_mapping = json.loads(maindata.main_common_mapping)
+        # 全局轴控制信息主要通过 scene['bone_axis_controls'] 传递，但这里也更新一下场景属性
+        scene['bone_axis_controls'] = maindata.main_axis_controls
+
+        # 6. 保存通用映射到 common_mapping 文件 (从全局变量保存)
         save_common_mapping(current_common_mapping)
-        
-        # 保存到当前活动预设
+
+        # 7. 保存当前 maindata 到活动预设文件
         active_preset = scene.active_preset_name
-        if MappingDataManager.save_mapping_preset(context, active_preset):
+        if MappingDataManager.save_mapping_preset(context, active_preset): # save_mapping_preset 现在会从 maindata 保存
             self.report({'INFO'}, f"映射更改已应用并保存到预设 {active_preset}")
         else:
             self.report({'WARNING'}, "映射更改已应用，但保存到预设失败")
-        
+
         return {'FINISHED'}
 
 class MAPPING_OT_ToggleSearchMode(bpy.types.Operator):
