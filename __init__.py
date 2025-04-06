@@ -352,43 +352,86 @@ class L4D2_OT_RemoveConstraint(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
+        # 只检查是否有活动对象且是骨架
         return (context.active_object is not None and
-                context.active_object.type == 'ARMATURE' and
-                context.active_object.mode == 'POSE')
+                context.active_object.type == 'ARMATURE')
 
     def execute(self, context):
-        # 根据action的值，调用不同的函数
-        if self.action == 'REMOVE_ALL':
-            return self.remove_all_constraints(context)
-        elif self.action == 'REMOVE_ROT_Y':
-            return self.remove_rotation_constraint_y(context)
-        elif self.action == 'REMOVE_TRANS':
-            return self.remove_transform_constraints(context)
-
-    def remove_all_constraints(self, context):
         armature = context.active_object
+        
+        # 记录原始模式
+        original_mode = armature.mode
+        
+        # 切换到姿态模式
+        if original_mode != 'POSE':
+            bpy.ops.object.mode_set(mode='POSE')
+        
+        # 根据action类型执行不同操作
+        try:
+            if self.action == 'REMOVE_ALL':
+                # 检查是否有约束
+                has_constraints = False
+                for bone in armature.pose.bones:
+                    if bone.constraints:
+                        has_constraints = True
+                        break
+                        
+                if not has_constraints:
+                    self.report({'ERROR'}, "没有找到约束")
+                    return {'CANCELLED'}
+                    
+                # 移除所有约束
+                count = self._remove_all_constraints(armature)
+                self.report({'INFO'}, f"已移除 {count} 个约束")
+                
+            elif self.action == 'REMOVE_TRANS':
+                # 检查是否有选中的骨骼
+                if not context.selected_pose_bones:
+                    self.report({'ERROR'}, "未选择骨骼")
+                    return {'CANCELLED'}
+                    
+                # 检查选中的骨骼是否有变换约束
+                has_transform = False
+                for bone in context.selected_pose_bones:
+                    if any(c.type == 'TRANSFORM' for c in bone.constraints):
+                        has_transform = True
+                        break
+                        
+                if not has_transform:
+                    self.report({'ERROR'}, "没有找到约束")
+                    return {'CANCELLED'}
+                    
+                # 移除变换约束
+                count = self._remove_transform_constraints(context.selected_pose_bones)
+                self.report({'INFO'}, f"已移除 {count} 个变换约束")
+                
+            return {'FINISHED'}
+                
+        finally:
+            # 无论操作成功还是失败，都恢复到原始模式
+            if original_mode != 'POSE':
+                bpy.ops.object.mode_set(mode=original_mode)
+            else:
+                bpy.ops.object.mode_set(mode='OBJECT')  # 姿态模式特殊处理为返回物体模式
+    
+    def _remove_all_constraints(self, armature):
+        """移除所有约束并返回移除数量"""
+        count = 0
         for bone in armature.pose.bones:
-            for constraint in bone.constraints:
+            for constraint in bone.constraints[:]:
                 bone.constraints.remove(constraint)
-        return {'FINISHED'}
+                count += 1
+        return count
 
-    def remove_rotation_constraint_y(self, context):
-        obj = context.object
-        for bone in context.selected_pose_bones:
-            for constraint in bone.constraints:
-                if constraint.type == 'COPY_ROTATION':
-                    constraint.use_y = False
-                    print("已移除骨骼", bone.name, "的旋转约束中的Y轴约束")
-        return {'FINISHED'}
-
-    def remove_transform_constraints(self, context):
-        obj = context.object
-        for bone in context.selected_pose_bones:
+    def _remove_transform_constraints(self, selected_bones):
+        """移除选中骨骼的变换约束并返回移除数量"""
+        count = 0
+        for bone in selected_bones:
             to_be_removed = [c for c in bone.constraints if c.type == 'TRANSFORM']
             for constraint in to_be_removed:
                 bone.constraints.remove(constraint)
-                print("已删除骨骼", bone.name, "的变换约束")
-        return {'FINISHED'}
+                count += 1
+        return count
 
 class L4D2_OT_SelectBones(bpy.types.Operator):
     bl_idname = "l4d2.select_bones"
@@ -530,11 +573,13 @@ def register():
     # 确保骨骼映射所需的属性已注册 (由bone_modify模块处理)
     if not hasattr(bpy.types.Scene, "mapping_ui_tab"):
         bpy.types.Scene.mapping_ui_tab = bpy.props.EnumProperty(
-            name="映射类型",
+            name="映射显示",
+            description="选择要显示的映射类型",
             items=[
-                ('ALL', "全部", "显示所有映射"),
-                ('UNIQUE', "独立", "仅显示独立映射"),
-                ('COMMON', "通用", "仅显示通用映射")
+                ('ALL', "全部映射", "显示所有类型的映射关系"),
+                ('UNIQUE', "独立映射", "只显示独立于通用映射的自定义映射"),
+                ('COMMON', "通用映射", "只显示通用骨骼到自定义骨骼的映射"),
+                ('AXIS', "轴控制", "管理官方骨骼的轴向约束设置")
             ],
             default='ALL',
             update=bone_modify.MappingDataManager.update_mapping_list
