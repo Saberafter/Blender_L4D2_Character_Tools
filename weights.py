@@ -1,5 +1,5 @@
 import bpy
-from bpy.props import StringProperty, CollectionProperty, PointerProperty
+from bpy.props import StringProperty, CollectionProperty, PointerProperty, FloatProperty
 from bpy.types import PropertyGroup, Operator, Panel, UIList
 
 class VertexGroupItem(PropertyGroup):
@@ -45,12 +45,18 @@ class L4D2_PT_WeightsPanel(Panel):
             
             # 权重处理按钮
             if len(scene.vertex_group_names) > 0:
-                row = layout.row(align=True)
-                row.operator("l4d2.process_vertex_groups", text="合并顶点组").operation = 'MERGE'
-                row.operator("l4d2.process_vertex_groups", text="均分权重").operation = 'EVEN_WEIGHT_TRANSFER'
+                # 将两个按钮分开为两列
+                row1 = layout.row()
+                row1.operator("l4d2.process_vertex_groups", text="合并顶点组").operation = 'MERGE'
+                row2 = layout.row()
+                row2.operator("l4d2.process_vertex_groups", text="均分权重").operation = 'EVEN_WEIGHT_TRANSFER'
+
+                # 如果顶点组数量足够显示二分权重选项
                 if len(scene.vertex_group_names) >= 3:
-                    row = layout.row()
+                    # 添加混合因子滑块和二分权重按钮在同一行
+                    row = layout.row(align=True)
                     row.operator("l4d2.process_vertex_groups", text="二分权重").operation = 'WEIGHT_TRANSFER'
+                    row.prop(scene, "blend_factor")
             else:
                 layout.label(text="请先添加顶点组")
 
@@ -280,7 +286,7 @@ class L4D2_OT_RemoveVertexGroup(Operator):
 class L4D2_OT_ProcessVertexGroups(Operator):
     bl_idname = "l4d2.process_vertex_groups"
     bl_label = "处理顶点组"
-    bl_description = "执行以下功能仅限于使用+按钮创建的列内的顶点组:\n合并顶点组:将第一列后的顶点组的权重合并到第一列顶点组中，并删除这些顶点组(小心)。\n均分权重:将第一列顶点组的权重平均分配给其他列顶点组。\n二分权重:以第一列顶点组中顶点的X-pos为参考，将权重分为左右两半。将左半部分的权重分配给第二列顶点组，将右半部分的权重分配给第三列顶点组"
+    bl_description = "合并: 合并后续组权重到首个组。\n均分: 均分首个组权重给后续组。\n二分: 按X坐标平滑分配首组权重给第2、3组 (受混合因子影响)。"
     
     operation: bpy.props.StringProperty()
     
@@ -352,43 +358,88 @@ class L4D2_OT_ProcessVertexGroups(Operator):
             self.report({'WARNING'}, "一个或多个指定的顶点组不存在")
 
     def weight_transfer(self, context, obj, group_names):
+        # 辅助函数：Smoothstep
+        def _smoothstep(edge0, edge1, x):
+            if edge0 == edge1: # 处理边缘情况
+                return 0.0 if x < edge0 else 1.0
+            # Clamp x to be within the range [edge0, edge1]
+            t = max(0.0, min(1.0, (x - edge0) / (edge1 - edge0)))
+            # Evaluate polynomial
+            return t * t * (3.0 - 2.0 * t)
+
         middle_group_name = group_names[0]
-        left_group_name = group_names[1]
-        right_group_name = group_names[2]
+        left_group_name = group_names[1]  # 接收 X >= center 的权重 (blend factor = 1)
+        right_group_name = group_names[2] # 接收 X < center 的权重 (blend factor = 0)
 
         if middle_group_name in obj.vertex_groups and \
            left_group_name in obj.vertex_groups and \
            right_group_name in obj.vertex_groups:
-            
+
             middle_group_index = obj.vertex_groups[middle_group_name].index
             left_group_index = obj.vertex_groups[left_group_name].index
             right_group_index = obj.vertex_groups[right_group_name].index
-            
-            # 收集所有受中间顶点组影响的顶点的X坐标
+
+            # 获取混合因子 - 从场景属性读取
+            blend_factor = context.scene.blend_factor
+
+            # 收集受影响顶点及其信息
+            vertices_to_process = [] # (vert_index, original_weight)
             x_coords = []
             for vert in obj.data.vertices:
                 for group in vert.groups:
-                    if group.group == middle_group_index and group.weight > 0:
+                    if group.group == middle_group_index and group.weight > 0.0001: # 忽略极小权重
+                        vertices_to_process.append((vert.index, group.weight))
                         x_coords.append(vert.co.x)
-                        break
-            
-            if len(x_coords) == 0:
-                self.report({'INFO'}, "没有找到中间顶点组的顶点")
+                        break # 每个顶点只处理一次
+
+            if not vertices_to_process:
+                self.report({'INFO'}, "没有找到中间顶点组影响的顶点")
                 return
 
+            # 计算中心线和混合区域
+            min_x = min(x_coords)
+            max_x = max(x_coords)
             center_line = sum(x_coords) / len(x_coords)
 
-            for vert in obj.data.vertices:
-                for group in vert.groups:
-                    if group.group == middle_group_index:
-                        weight = group.weight
-                        obj.vertex_groups[middle_group_index].remove([vert.index])
-                        if vert.co.x < center_line:
-                            obj.vertex_groups[right_group_index].add([vert.index], weight, 'ADD')
-                        else:
-                            obj.vertex_groups[left_group_index].add([vert.index], weight, 'ADD')
-            
-            self.report({'INFO'}, "权重二分完成")
+            # 如果所有点 X 坐标相同或 blend_factor 为 0，则等同于硬分割
+            if max_x == min_x or blend_factor == 0.0:
+                blend_start = center_line
+                blend_end = center_line
+            else:
+                half_width = (max_x - min_x) * blend_factor * 0.5
+                blend_start = center_line - half_width
+                blend_end = center_line + half_width
+                # 钳制混合区域在实际坐标范围内
+                blend_start = max(min_x, blend_start)
+                blend_end = min(max_x, blend_end)
+                # 再次检查防止浮点误差导致 start > end
+                if blend_start > blend_end:
+                    blend_start = blend_end = center_line
+
+            # --- 权重转移 --- 
+            # 优化：一次性移除所有相关顶点在中间组的权重
+            vert_indices_to_remove = [v[0] for v in vertices_to_process]
+            obj.vertex_groups[middle_group_index].remove(vert_indices_to_remove)
+
+            # 遍历并分配权重
+            for vert_index, original_weight in vertices_to_process:
+                vert_co_x = obj.data.vertices[vert_index].co.x
+
+                # 计算平滑因子 (0 -> 1)
+                s_factor = _smoothstep(blend_start, blend_end, vert_co_x)
+
+                # 计算分配给左右组的权重
+                weight_left = original_weight * s_factor
+                weight_right = original_weight * (1.0 - s_factor)
+
+                # 添加权重 (使用 ADD 是因为中间组权重已被移除)
+                if weight_left > 0.0001: # 忽略极小的权重以保持稀疏性
+                    obj.vertex_groups[left_group_index].add([vert_index], weight_left, 'ADD')
+                if weight_right > 0.0001:
+                    obj.vertex_groups[right_group_index].add([vert_index], weight_right, 'ADD')
+            # --- 结束权重转移 ---
+
+            self.report({'INFO'}, f"权重二分完成 (混合因子: {blend_factor:.2f})")
         else:
             self.report({'WARNING'}, "一个或多个指定的顶点组不存在")
 
@@ -432,8 +483,18 @@ def register():
             description="顶点组编辑",
             default=False
         )
+        # 确认 blend_factor 属性已添加
+        if not hasattr(bpy.types.Scene, 'blend_factor'): # 添加检查确保不重复添加
+            bpy.types.Scene.blend_factor = bpy.props.FloatProperty(
+                name="混合因子",
+                description="二分权重时过渡区域的平滑度 (0=硬分割, 1=最大平滑)",
+                default=0.5,
+                min=0.0,
+                max=1.0
+            )
     except Exception as e:
         # 抑制属性注册错误的消息
+        print(f"Error registering scene properties: {e}") # 打印错误以便调试
         pass
 
 def unregister():
@@ -450,8 +511,12 @@ def unregister():
         del bpy.types.Scene.target_mesh_object
         del bpy.types.Scene.related_objects
         del bpy.types.Scene.bl_VGE
+        # 确认 blend_factor 属性已删除
+        if hasattr(bpy.types.Scene, 'blend_factor'): # 添加检查确保只删除存在的属性
+             del bpy.types.Scene.blend_factor
     except Exception as e:
         # 抑制删除属性错误的消息
+        print(f"Error unregistering scene properties: {e}") # 打印错误以便调试
         pass
 
 if __name__ == "__main__":
