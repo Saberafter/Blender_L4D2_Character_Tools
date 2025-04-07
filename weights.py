@@ -1,6 +1,8 @@
 import bpy
-from bpy.props import StringProperty, CollectionProperty, PointerProperty, FloatProperty
+from bpy.props import StringProperty, CollectionProperty, PointerProperty, FloatProperty, FloatVectorProperty, BoolProperty
 from bpy.types import PropertyGroup, Operator, Panel, UIList
+from mathutils import Vector
+from bpy_extras import view3d_utils
 
 class VertexGroupItem(PropertyGroup):
     name: StringProperty(name="顶点组名称")
@@ -53,10 +55,22 @@ class L4D2_PT_WeightsPanel(Panel):
 
                 # 如果顶点组数量足够显示二分权重选项
                 if len(scene.vertex_group_names) >= 3:
-                    # 添加混合因子滑块和二分权重按钮在同一行
-                    row = layout.row(align=True)
-                    row.operator("l4d2.process_vertex_groups", text="二分权重").operation = 'WEIGHT_TRANSFER'
-                    row.prop(scene, "blend_factor")
+                    # 添加混合因子滑块
+                    row_blend = layout.row()
+                    row_blend.prop(scene, "blend_factor")
+                    
+                    # 添加二分权重按钮和自定义分割线按钮
+                    row_split = layout.row(align=True)
+                    row_split.operator("l4d2.process_vertex_groups", text="二分权重").operation = 'WEIGHT_TRANSFER'
+                    
+                    # 添加绘制分割线按钮
+                    split_icon = "SNAP_ON" if scene.use_custom_split_line else "SNAP_OFF"
+                    split_line_op = row_split.operator("l4d2.draw_split_line", text="", icon=split_icon)
+                    
+                    # 如果已经设置了自定义分割线，显示一些信息
+                    if scene.use_custom_split_line:
+                        row_info = layout.row()
+                        row_info.label(text="使用自定义分割线", icon="INFO")
             else:
                 layout.label(text="请先添加顶点组")
 
@@ -368,8 +382,8 @@ class L4D2_OT_ProcessVertexGroups(Operator):
             return t * t * (3.0 - 2.0 * t)
 
         middle_group_name = group_names[0]
-        left_group_name = group_names[1]  # 接收 X >= center 的权重 (blend factor = 1)
-        right_group_name = group_names[2] # 接收 X < center 的权重 (blend factor = 0)
+        left_group_name = group_names[1]  # 接收正侧的权重
+        right_group_name = group_names[2] # 接收负侧的权重
 
         if middle_group_name in obj.vertex_groups and \
            left_group_name in obj.vertex_groups and \
@@ -379,73 +393,282 @@ class L4D2_OT_ProcessVertexGroups(Operator):
             left_group_index = obj.vertex_groups[left_group_name].index
             right_group_index = obj.vertex_groups[right_group_name].index
 
-            # 获取混合因子 - 从场景属性读取
+            # 获取混合因子
             blend_factor = context.scene.blend_factor
 
             # 收集受影响顶点及其信息
             vertices_to_process = [] # (vert_index, original_weight)
-            x_coords = []
-            for vert in obj.data.vertices:
-                for group in vert.groups:
-                    if group.group == middle_group_index and group.weight > 0.0001: # 忽略极小权重
-                        vertices_to_process.append((vert.index, group.weight))
-                        x_coords.append(vert.co.x)
-                        break # 每个顶点只处理一次
-
-            if not vertices_to_process:
-                self.report({'INFO'}, "没有找到中间顶点组影响的顶点")
-                return
-
-            # 计算中心线和混合区域
-            min_x = min(x_coords)
-            max_x = max(x_coords)
-            center_line = sum(x_coords) / len(x_coords)
-
-            # 如果所有点 X 坐标相同或 blend_factor 为 0，则等同于硬分割
-            if max_x == min_x or blend_factor == 0.0:
-                blend_start = center_line
-                blend_end = center_line
+            
+            # 判断是使用自定义分割线还是X轴
+            use_custom_split = context.scene.use_custom_split_line
+            
+            if use_custom_split:
+                # 获取分割线的起点和终点
+                start_point = Vector(context.scene.split_line_start)
+                end_point = Vector(context.scene.split_line_end)
+                
+                # 计算分割线的方向向量
+                line_direction = (end_point - start_point).normalized()
+                
+                # 构建分割平面的法向量 (线的垂直方向)
+                # 注意：在3D空间中，一条线的垂直方向有无数种，这里我们取一个合理的
+                if abs(line_direction.z) < 0.9:  # 如果线不是接近垂直的
+                    plane_normal = Vector((line_direction.y, -line_direction.x, 0)).normalized()
+                else:  # 如果线接近垂直，使用X轴作为参考
+                    plane_normal = Vector((1, 0, 0)) - line_direction * line_direction.x
+                    plane_normal.normalize()
+                
+                # 使用平面方程 ax + by + cz + d = 0 来计算顶点相对于平面的位置
+                # 其中 (a,b,c) 是平面法向量，d 是平面常数
+                plane_d = -start_point.dot(plane_normal)
+                
+                # 收集顶点并计算它们相对于分割平面的有符号距离
+                for vert in obj.data.vertices:
+                    for group in vert.groups:
+                        if group.group == middle_group_index and group.weight > 0.0001:
+                            # 计算顶点到平面的有符号距离
+                            distance = vert.co.dot(plane_normal) + plane_d
+                            vertices_to_process.append((vert.index, group.weight, distance))
+                            break
+                
+                # 如果没有影响顶点
+                if not vertices_to_process:
+                    self.report({'INFO'}, "没有找到中间顶点组影响的顶点")
+                    return
+                
+                # 计算距离的最大和最小值用于混合
+                distances = [v[2] for v in vertices_to_process]
+                min_distance = min(distances)
+                max_distance = max(distances)
+                
+                # 如果所有点在平面上或混合因子为0，则进行硬分割
+                if min_distance == max_distance or blend_factor == 0.0:
+                    blend_start = 0
+                    blend_end = 0
+                else:
+                    # 计算混合区域
+                    half_width = (max_distance - min_distance) * blend_factor * 0.5
+                    blend_start = -half_width
+                    blend_end = half_width
             else:
-                half_width = (max_x - min_x) * blend_factor * 0.5
-                blend_start = center_line - half_width
-                blend_end = center_line + half_width
-                # 钳制混合区域在实际坐标范围内
-                blend_start = max(min_x, blend_start)
-                blend_end = min(max_x, blend_end)
-                # 再次检查防止浮点误差导致 start > end
-                if blend_start > blend_end:
-                    blend_start = blend_end = center_line
+                # 原始的X轴分割逻辑
+                x_coords = []
+                for vert in obj.data.vertices:
+                    for group in vert.groups:
+                        if group.group == middle_group_index and group.weight > 0.0001:
+                            vertices_to_process.append((vert.index, group.weight, vert.co.x))
+                            x_coords.append(vert.co.x)
+                            break
+                
+                if not vertices_to_process:
+                    self.report({'INFO'}, "没有找到中间顶点组影响的顶点")
+                    return
+                
+                # 计算X轴的中心和混合区域
+                min_x = min(x_coords)
+                max_x = max(x_coords)
+                center_line = sum(x_coords) / len(x_coords)
+                
+                # 如果所有点X坐标相同或混合因子为0，则硬分割
+                if max_x == min_x or blend_factor == 0.0:
+                    blend_start = center_line
+                    blend_end = center_line
+                else:
+                    half_width = (max_x - min_x) * blend_factor * 0.5
+                    blend_start = center_line - half_width
+                    blend_end = center_line + half_width
+                    blend_start = max(min_x, blend_start)
+                    blend_end = min(max_x, blend_end)
+                    if blend_start > blend_end:
+                        blend_start = blend_end = center_line
 
-            # --- 权重转移 --- 
-            # 优化：一次性移除所有相关顶点在中间组的权重
+            # 一次性移除所有相关顶点在中间组的权重
             vert_indices_to_remove = [v[0] for v in vertices_to_process]
             obj.vertex_groups[middle_group_index].remove(vert_indices_to_remove)
 
             # 遍历并分配权重
-            for vert_index, original_weight in vertices_to_process:
-                vert_co_x = obj.data.vertices[vert_index].co.x
-
-                # 计算平滑因子 (0 -> 1)
-                s_factor = _smoothstep(blend_start, blend_end, vert_co_x)
+            for vert_index, original_weight, position in vertices_to_process:
+                if use_custom_split:
+                    # 根据顶点到平面的距离计算混合因子
+                    s_factor = _smoothstep(blend_start, blend_end, position)
+                else:
+                    # 根据X坐标计算混合因子
+                    s_factor = _smoothstep(blend_start, blend_end, position)
 
                 # 计算分配给左右组的权重
                 weight_left = original_weight * s_factor
                 weight_right = original_weight * (1.0 - s_factor)
 
-                # 添加权重 (使用 ADD 是因为中间组权重已被移除)
-                if weight_left > 0.0001: # 忽略极小的权重以保持稀疏性
+                # 添加权重
+                if weight_left > 0.0001:
                     obj.vertex_groups[left_group_index].add([vert_index], weight_left, 'ADD')
                 if weight_right > 0.0001:
                     obj.vertex_groups[right_group_index].add([vert_index], weight_right, 'ADD')
-            # --- 结束权重转移 ---
 
-            self.report({'INFO'}, f"权重二分完成 (混合因子: {blend_factor:.2f})")
+            if use_custom_split:
+                self.report({'INFO'}, f"使用自定义分割线完成二分权重 (混合因子: {blend_factor:.2f})")
+            else:
+                self.report({'INFO'}, f"使用X轴完成二分权重 (混合因子: {blend_factor:.2f})")
         else:
             self.report({'WARNING'}, "一个或多个指定的顶点组不存在")
 
 # 用于存储关联物体列表的属性类
 class RelatedObjectItem(PropertyGroup):
     name: StringProperty()
+
+# 添加L4D2_OT_DrawSplitLine模态操作符类
+class L4D2_OT_DrawSplitLine(Operator):
+    bl_idname = "l4d2.draw_split_line"
+    bl_label = "绘制分割线"
+    bl_description = "在3D视图中绘制分割线，用于自定义权重分割方向"
+    
+    # 存储鼠标状态和操作阶段
+    _state = 'NONE'  # 可能的状态: 'NONE', 'START', 'END'
+    _mouse_pos = Vector((0, 0))
+    _handler = None
+    
+    @staticmethod
+    def draw_callback_px(self, context):
+        """绘制临时分割线的回调函数"""
+        import bpy
+        import gpu
+        from gpu_extras.batch import batch_for_shader
+        
+        # 获取分割线坐标
+        if self._state == 'NONE':
+            return
+        elif self._state == 'START':
+            # 当只有起点时，使用鼠标位置作为临时终点
+            start = Vector(context.scene.split_line_start)
+            
+            # 将3D起点转换为屏幕空间
+            region = context.region
+            rv3d = context.region_data
+            start_2d = view3d_utils.location_3d_to_region_2d(region, rv3d, start)
+            
+            if start_2d:
+                points = [start_2d, self._mouse_pos]
+            else:
+                return
+        else:  # 'END'状态，显示完整分割线
+            # 获取视图坐标的3D点
+            start = Vector(context.scene.split_line_start)
+            end = Vector(context.scene.split_line_end)
+            
+            # 将3D点转换为屏幕空间
+            region = context.region
+            rv3d = context.region_data
+            start_2d = view3d_utils.location_3d_to_region_2d(region, rv3d, start)
+            end_2d = view3d_utils.location_3d_to_region_2d(region, rv3d, end)
+            
+            if start_2d and end_2d:
+                points = [start_2d, end_2d]
+            else:
+                return
+        
+        # 设置着色器
+        shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+        batch = batch_for_shader(shader, 'LINES', {"pos": points})
+        
+        # 设置线条属性
+        shader.bind()
+        shader.uniform_float("color", (1, 0.2, 0.2, 1.0))  # 红色
+        gpu.state.line_width_set(2.0)
+        
+        # 绘制线条
+        batch.draw(shader)
+    
+    def invoke(self, context, event):
+        # 检查是否在正确的上下文中
+        if context.area.type != 'VIEW_3D':
+            self.report({'WARNING'}, "必须在3D视图中使用此工具")
+            return {'CANCELLED'}
+        
+        # 重置状态
+        self.__class__._state = 'NONE'
+        context.scene.use_custom_split_line = False
+        
+        # 设置模态处理器
+        context.window_manager.modal_handler_add(self)
+        
+        # 添加绘制回调
+        args = (self, context)
+        self.__class__._handler = bpy.types.SpaceView3D.draw_handler_add(
+            self.__class__.draw_callback_px, args, 'WINDOW', 'POST_PIXEL')
+        
+        # 提示用户
+        self.report({'INFO'}, "单击设置分割线起点，移动后再次单击设置终点")
+        return {'RUNNING_MODAL'}
+    
+    def modal(self, context, event):
+        # 始终更新鼠标位置用于绘制
+        if event.type == 'MOUSEMOVE':
+            self.__class__._mouse_pos = Vector((event.mouse_region_x, event.mouse_region_y))
+            context.area.tag_redraw()
+        
+        # ESC键取消操作
+        elif event.type in {'ESC', 'RIGHTMOUSE'}:
+            self.cleanup(context)
+            self.report({'INFO'}, "取消绘制分割线")
+            return {'CANCELLED'}
+        
+        # 左键点击设置点
+        elif event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+            # 获取3D鼠标位置
+            coord = (event.mouse_region_x, event.mouse_region_y)
+            region = context.region
+            rv3d = context.region_data
+            
+            # 射线投射获取3D位置
+            view_vector = view3d_utils.region_2d_to_vector_3d(region, rv3d, coord)
+            ray_origin = view3d_utils.region_2d_to_origin_3d(region, rv3d, coord)
+            
+            # 假设在中心深度平面上投射
+            # 如果有活动对象，我们也可以使用物体的位置或射线与物体相交来确定深度
+            if context.scene.target_mesh_object:
+                obj = bpy.data.objects.get(context.scene.target_mesh_object)
+                if obj:
+                    # 使用目标对象的位置作为深度参考
+                    hit, loc, norm, face = obj.ray_cast(ray_origin, view_vector)
+                    point_3d = ray_origin + view_vector * ((obj.location - ray_origin).dot(Vector((0,0,1))) / view_vector.dot(Vector((0,0,1)))) if not hit else loc
+                else:
+                    # 深度不重要时，可以使用视图中心的深度
+                    depth_factor = 5.0  # 任意深度因子
+                    point_3d = ray_origin + view_vector * depth_factor
+            else:
+                # 深度不重要时，可以使用视图中心的深度
+                depth_factor = 5.0  # 任意深度因子
+                point_3d = ray_origin + view_vector * depth_factor
+            
+            if self.__class__._state == 'NONE':
+                # 设置起点
+                context.scene.split_line_start = point_3d
+                self.__class__._state = 'START'
+                self.report({'INFO'}, "起点已设置，移动鼠标并再次单击设置终点")
+            elif self.__class__._state == 'START':
+                # 设置终点
+                context.scene.split_line_end = point_3d
+                self.__class__._state = 'END'
+                
+                # 启用自定义分割线
+                context.scene.use_custom_split_line = True
+                
+                # 完成操作
+                self.cleanup(context)
+                self.report({'INFO'}, "分割线已设置")
+                return {'FINISHED'}
+        
+        return {'RUNNING_MODAL'}
+    
+    def cleanup(self, context):
+        # 移除绘制回调
+        if self.__class__._handler:
+            bpy.types.SpaceView3D.draw_handler_remove(self.__class__._handler, 'WINDOW')
+            self.__class__._handler = None
+        
+        # 标记区域重绘
+        if context.area:
+            context.area.tag_redraw()
 
 # 注册类列表
 classes = [
@@ -459,7 +682,8 @@ classes = [
     L4D2_OT_SetTargetMesh,
     L4D2_OT_ClearVertexGroups,
     L4D2_OT_RemoveVertexGroup,
-    L4D2_OT_ProcessVertexGroups
+    L4D2_OT_ProcessVertexGroups,
+    L4D2_OT_DrawSplitLine
 ]
 
 def register():
@@ -492,6 +716,32 @@ def register():
                 min=0.0,
                 max=1.0
             )
+            
+        # 添加分割线属性
+        if not hasattr(bpy.types.Scene, 'split_line_start'):
+            bpy.types.Scene.split_line_start = FloatVectorProperty(
+                name="分割线起点",
+                description="自定义分割线的起点",
+                subtype='XYZ',
+                size=3,
+                default=(0, 0, 0)
+            )
+            
+        if not hasattr(bpy.types.Scene, 'split_line_end'):
+            bpy.types.Scene.split_line_end = FloatVectorProperty(
+                name="分割线终点",
+                description="自定义分割线的终点",
+                subtype='XYZ',
+                size=3,
+                default=(0, 0, 0)
+            )
+            
+        if not hasattr(bpy.types.Scene, 'use_custom_split_line'):
+            bpy.types.Scene.use_custom_split_line = BoolProperty(
+                name="使用自定义分割线",
+                description="启用后二分权重将使用自定义分割线而非X轴",
+                default=False
+            )
     except Exception as e:
         # 抑制属性注册错误的消息
         print(f"Error registering scene properties: {e}") # 打印错误以便调试
@@ -514,6 +764,16 @@ def unregister():
         # 确认 blend_factor 属性已删除
         if hasattr(bpy.types.Scene, 'blend_factor'): # 添加检查确保只删除存在的属性
              del bpy.types.Scene.blend_factor
+             
+        # 删除分割线属性
+        if hasattr(bpy.types.Scene, 'split_line_start'):
+            del bpy.types.Scene.split_line_start
+            
+        if hasattr(bpy.types.Scene, 'split_line_end'):
+            del bpy.types.Scene.split_line_end
+            
+        if hasattr(bpy.types.Scene, 'use_custom_split_line'):
+            del bpy.types.Scene.use_custom_split_line
     except Exception as e:
         # 抑制删除属性错误的消息
         print(f"Error unregistering scene properties: {e}") # 打印错误以便调试
