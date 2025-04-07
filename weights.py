@@ -55,22 +55,49 @@ class L4D2_PT_WeightsPanel(Panel):
 
                 # 如果顶点组数量足够显示二分权重选项
                 if len(scene.vertex_group_names) >= 3:
-                    # 添加混合因子滑块
-                    row_blend = layout.row()
-                    row_blend.prop(scene, "blend_factor")
+                    layout.separator()
                     
-                    # 添加二分权重按钮和自定义分割线按钮
-                    row_split = layout.row(align=True)
-                    row_split.operator("l4d2.process_vertex_groups", text="二分权重").operation = 'WEIGHT_TRANSFER'
+                    # 第一行：分割模式按钮
+                    layout.label(text="分割模式:")
                     
-                    # 添加绘制分割线按钮
-                    split_icon = "SNAP_ON" if scene.use_custom_split_line else "SNAP_OFF"
-                    split_line_op = row_split.operator("l4d2.draw_split_line", text="", icon=split_icon)
+                    # 创建分割模式按钮组
+                    split_mode_row = layout.row(align=True)
                     
-                    # 如果已经设置了自定义分割线，显示一些信息
-                    if scene.use_custom_split_line:
-                        row_info = layout.row()
-                        row_info.label(text="使用自定义分割线", icon="INFO")
+                    # 创建四个分割模式按钮，当前选中的会高亮显示
+                    split_mode = scene.split_mode
+                    
+                    # X轴按钮
+                    icon_x = 'RADIOBUT_ON' if split_mode == 'X_AXIS' else 'RADIOBUT_OFF'
+                    x_op = split_mode_row.operator("l4d2.set_split_mode", text="X轴", icon=icon_x, depress=(split_mode == 'X_AXIS'))
+                    x_op.mode = 'X_AXIS'
+                    
+                    # Y轴按钮
+                    icon_y = 'RADIOBUT_ON' if split_mode == 'Y_AXIS' else 'RADIOBUT_OFF'
+                    y_op = split_mode_row.operator("l4d2.set_split_mode", text="Y轴", icon=icon_y, depress=(split_mode == 'Y_AXIS'))
+                    y_op.mode = 'Y_AXIS'
+                    
+                    # Z轴按钮
+                    icon_z = 'RADIOBUT_ON' if split_mode == 'Z_AXIS' else 'RADIOBUT_OFF'
+                    z_op = split_mode_row.operator("l4d2.set_split_mode", text="Z轴", icon=icon_z, depress=(split_mode == 'Z_AXIS'))
+                    z_op.mode = 'Z_AXIS'
+                    
+                    # 自定义分割线按钮
+                    icon_custom = 'RADIOBUT_ON' if split_mode == 'CUSTOM' else 'RADIOBUT_OFF'
+                    custom_op = split_mode_row.operator("l4d2.draw_split_line", text="自定义", icon=icon_custom, depress=(split_mode == 'CUSTOM'))
+                    
+                    # 如果当前是自定义分割线模式且未设置，显示警告
+                    if split_mode == 'CUSTOM' and not scene.use_custom_split_line:
+                        warning_row = layout.row()
+                        warning_row.label(text="请先绘制分割线", icon='ERROR')
+                    
+                    # 第二行：混合因子滑块
+                    blend_row = layout.row()
+                    blend_row.prop(scene, "blend_factor")
+                    
+                    # 第三行：二分权重执行按钮
+                    weight_btn_row = layout.row()
+                    weight_btn_row.scale_y = 1.2
+                    weight_btn_row.operator("l4d2.process_vertex_groups", text="执行二分权重").operation = 'WEIGHT_TRANSFER'
             else:
                 layout.label(text="请先添加顶点组")
 
@@ -300,7 +327,7 @@ class L4D2_OT_RemoveVertexGroup(Operator):
 class L4D2_OT_ProcessVertexGroups(Operator):
     bl_idname = "l4d2.process_vertex_groups"
     bl_label = "处理顶点组"
-    bl_description = "合并: 合并后续组权重到首个组。\n均分: 均分首个组权重给后续组。\n二分: 按X坐标平滑分配首组权重给第2、3组 (受混合因子影响)。"
+    bl_description = "合并: 合并后续组权重到首个组。\n均分: 均分首个组权重给后续组。\n二分: 根据选择的方向或自定义线分配首组权重给第2、3组。"
     
     operation: bpy.props.StringProperty()
     
@@ -371,16 +398,33 @@ class L4D2_OT_ProcessVertexGroups(Operator):
         else:
             self.report({'WARNING'}, "一个或多个指定的顶点组不存在")
 
-    def weight_transfer(self, context, obj, group_names):
-        # 辅助函数：Smoothstep
-        def _smoothstep(edge0, edge1, x):
-            if edge0 == edge1: # 处理边缘情况
-                return 0.0 if x < edge0 else 1.0
-            # Clamp x to be within the range [edge0, edge1]
-            t = max(0.0, min(1.0, (x - edge0) / (edge1 - edge0)))
-            # Evaluate polynomial
-            return t * t * (3.0 - 2.0 * t)
+    # 辅助函数：Smoothstep
+    def _smoothstep(self, edge0, edge1, x):
+        if edge0 == edge1: # 处理边缘情况
+            return 0.0 if x < edge0 else 1.0
+        # Clamp x to be within the range [edge0, edge1]
+        t = max(0.0, min(1.0, (x - edge0) / (edge1 - edge0)))
+        # Evaluate polynomial
+        return t * t * (3.0 - 2.0 * t)
 
+    def weight_transfer(self, context, obj, group_names):
+        """根据当前分割模式调用对应的权重转移函数"""
+        split_mode = context.scene.split_mode
+        
+        if split_mode == 'X_AXIS':
+            self.weight_transfer_axis(context, obj, group_names, 'X')
+        elif split_mode == 'Y_AXIS':
+            self.weight_transfer_axis(context, obj, group_names, 'Y')
+        elif split_mode == 'Z_AXIS':
+            self.weight_transfer_axis(context, obj, group_names, 'Z')
+        elif split_mode == 'CUSTOM' and context.scene.use_custom_split_line:
+            self.weight_transfer_custom(context, obj, group_names)
+        else:
+            # 默认使用X轴
+            self.weight_transfer_axis(context, obj, group_names, 'X')
+    
+    def weight_transfer_axis(self, context, obj, group_names, axis):
+        """按指定轴向进行二分权重转移"""
         middle_group_name = group_names[0]
         left_group_name = group_names[1]  # 接收正侧的权重
         right_group_name = group_names[2] # 接收负侧的权重
@@ -397,103 +441,148 @@ class L4D2_OT_ProcessVertexGroups(Operator):
             blend_factor = context.scene.blend_factor
 
             # 收集受影响顶点及其信息
-            vertices_to_process = [] # (vert_index, original_weight)
+            vertices_to_process = [] # (vert_index, original_weight, position)
+            positions = []
             
-            # 判断是使用自定义分割线还是X轴
-            use_custom_split = context.scene.use_custom_split_line
+            # 根据轴向获取位置坐标
+            for vert in obj.data.vertices:
+                for group in vert.groups:
+                    if group.group == middle_group_index and group.weight > 0.0001:
+                        # 根据选择的轴向获取坐标
+                        if axis == 'X':
+                            pos = vert.co.x
+                        elif axis == 'Y':
+                            pos = vert.co.y
+                        else:  # Z轴
+                            pos = vert.co.z
+                            
+                        vertices_to_process.append((vert.index, group.weight, pos))
+                        positions.append(pos)
+                        break
             
-            if use_custom_split:
-                # 获取分割线的起点和终点
-                start_point = Vector(context.scene.split_line_start)
-                end_point = Vector(context.scene.split_line_end)
-                
-                # 计算分割线的方向向量
-                line_direction = (end_point - start_point).normalized()
-                
-                # 构建分割平面的法向量 (线的垂直方向)
-                # 注意：在3D空间中，一条线的垂直方向有无数种，这里我们取一个合理的
-                if abs(line_direction.z) < 0.9:  # 如果线不是接近垂直的
-                    plane_normal = Vector((line_direction.y, -line_direction.x, 0)).normalized()
-                else:  # 如果线接近垂直，使用X轴作为参考
-                    plane_normal = Vector((1, 0, 0)) - line_direction * line_direction.x
-                    plane_normal.normalize()
-                
-                # 使用平面方程 ax + by + cz + d = 0 来计算顶点相对于平面的位置
-                # 其中 (a,b,c) 是平面法向量，d 是平面常数
-                plane_d = -start_point.dot(plane_normal)
-                
-                # 收集顶点并计算它们相对于分割平面的有符号距离
-                for vert in obj.data.vertices:
-                    for group in vert.groups:
-                        if group.group == middle_group_index and group.weight > 0.0001:
-                            # 计算顶点到平面的有符号距离
-                            distance = vert.co.dot(plane_normal) + plane_d
-                            vertices_to_process.append((vert.index, group.weight, distance))
-                            break
-                
-                # 如果没有影响顶点
-                if not vertices_to_process:
-                    self.report({'INFO'}, "没有找到中间顶点组影响的顶点")
-                    return
-                
-                # 计算距离的最大和最小值用于混合
-                distances = [v[2] for v in vertices_to_process]
-                min_distance = min(distances)
-                max_distance = max(distances)
-                
-                # 如果所有点在平面上或混合因子为0，则进行硬分割
-                if min_distance == max_distance or blend_factor == 0.0:
-                    blend_start = 0
-                    blend_end = 0
-                else:
-                    # 计算混合区域
-                    half_width = (max_distance - min_distance) * blend_factor * 0.5
-                    blend_start = -half_width
-                    blend_end = half_width
+            if not vertices_to_process:
+                self.report({'INFO'}, "没有找到中间顶点组影响的顶点")
+                return
+            
+            # 计算中心线和混合区域
+            min_pos = min(positions)
+            max_pos = max(positions)
+            center_line = sum(positions) / len(positions)
+            
+            # 如果所有点位置相同或混合因子为0，则等同于硬分割
+            if max_pos == min_pos or blend_factor == 0.0:
+                blend_start = center_line
+                blend_end = center_line
             else:
-                # 原始的X轴分割逻辑
-                x_coords = []
-                for vert in obj.data.vertices:
-                    for group in vert.groups:
-                        if group.group == middle_group_index and group.weight > 0.0001:
-                            vertices_to_process.append((vert.index, group.weight, vert.co.x))
-                            x_coords.append(vert.co.x)
-                            break
-                
-                if not vertices_to_process:
-                    self.report({'INFO'}, "没有找到中间顶点组影响的顶点")
-                    return
-                
-                # 计算X轴的中心和混合区域
-                min_x = min(x_coords)
-                max_x = max(x_coords)
-                center_line = sum(x_coords) / len(x_coords)
-                
-                # 如果所有点X坐标相同或混合因子为0，则硬分割
-                if max_x == min_x or blend_factor == 0.0:
-                    blend_start = center_line
-                    blend_end = center_line
-                else:
-                    half_width = (max_x - min_x) * blend_factor * 0.5
-                    blend_start = center_line - half_width
-                    blend_end = center_line + half_width
-                    blend_start = max(min_x, blend_start)
-                    blend_end = min(max_x, blend_end)
-                    if blend_start > blend_end:
-                        blend_start = blend_end = center_line
+                half_width = (max_pos - min_pos) * blend_factor * 0.5
+                blend_start = center_line - half_width
+                blend_end = center_line + half_width
+                # 钳制混合区域在实际坐标范围内
+                blend_start = max(min_pos, blend_start)
+                blend_end = min(max_pos, blend_end)
+                # 再次检查防止浮点误差导致 start > end
+                if blend_start > blend_end:
+                    blend_start = blend_end = center_line
+
+            # 优化：一次性移除所有相关顶点在中间组的权重
+            vert_indices_to_remove = [v[0] for v in vertices_to_process]
+            obj.vertex_groups[middle_group_index].remove(vert_indices_to_remove)
+
+            # 遍历并分配权重
+            for vert_index, original_weight, position in vertices_to_process:
+                # 计算平滑因子 (0 -> 1)
+                s_factor = self._smoothstep(blend_start, blend_end, position)
+
+                # 计算分配给左右组的权重
+                weight_left = original_weight * s_factor
+                weight_right = original_weight * (1.0 - s_factor)
+
+                # 添加权重 (使用 ADD 是因为中间组权重已被移除)
+                if weight_left > 0.0001: # 忽略极小的权重以保持稀疏性
+                    obj.vertex_groups[left_group_index].add([vert_index], weight_left, 'ADD')
+                if weight_right > 0.0001:
+                    obj.vertex_groups[right_group_index].add([vert_index], weight_right, 'ADD')
+
+            self.report({'INFO'}, f"使用{axis}轴完成二分权重 (混合因子: {blend_factor:.2f})")
+        else:
+            self.report({'WARNING'}, "一个或多个指定的顶点组不存在")
+    
+    def weight_transfer_custom(self, context, obj, group_names):
+        """使用自定义分割线进行二分权重转移"""
+        middle_group_name = group_names[0]
+        left_group_name = group_names[1]  # 接收正侧的权重
+        right_group_name = group_names[2] # 接收负侧的权重
+
+        if middle_group_name in obj.vertex_groups and \
+           left_group_name in obj.vertex_groups and \
+           right_group_name in obj.vertex_groups:
+
+            middle_group_index = obj.vertex_groups[middle_group_name].index
+            left_group_index = obj.vertex_groups[left_group_name].index
+            right_group_index = obj.vertex_groups[right_group_name].index
+
+            # 获取混合因子
+            blend_factor = context.scene.blend_factor
+            
+            # 获取分割线的起点和终点
+            start_point = Vector(context.scene.split_line_start)
+            end_point = Vector(context.scene.split_line_end)
+            
+            # 计算分割线的方向向量
+            line_direction = (end_point - start_point).normalized()
+            
+            # 构建分割平面的法向量 (线的垂直方向)
+            # 注意：在3D空间中，一条线的垂直方向有无数种，这里我们取一个合理的
+            if abs(line_direction.z) < 0.9:  # 如果线不是接近垂直的
+                plane_normal = Vector((line_direction.y, -line_direction.x, 0)).normalized()
+            else:  # 如果线接近垂直，使用X轴作为参考
+                plane_normal = Vector((1, 0, 0)) - line_direction * line_direction.x
+                plane_normal.normalize()
+            
+            # 使用平面方程 ax + by + cz + d = 0 来计算顶点相对于平面的位置
+            # 其中 (a,b,c) 是平面法向量，d 是平面常数
+            plane_d = -start_point.dot(plane_normal)
+            
+            # 收集顶点并计算它们相对于分割平面的有符号距离
+            vertices_to_process = [] # (vert_index, original_weight, distance)
+            distances = []
+            
+            for vert in obj.data.vertices:
+                for group in vert.groups:
+                    if group.group == middle_group_index and group.weight > 0.0001:
+                        # 计算顶点到平面的有符号距离
+                        distance = vert.co.dot(plane_normal) + plane_d
+                        vertices_to_process.append((vert.index, group.weight, distance))
+                        distances.append(distance)
+                        break
+            
+            # 如果没有影响顶点
+            if not vertices_to_process:
+                self.report({'INFO'}, "没有找到中间顶点组影响的顶点")
+                return
+            
+            # 计算距离的最大和最小值用于混合
+            min_distance = min(distances)
+            max_distance = max(distances)
+            
+            # 如果所有点在平面上或混合因子为0，则进行硬分割
+            if min_distance == max_distance or blend_factor == 0.0:
+                blend_start = 0
+                blend_end = 0
+            else:
+                # 计算混合区域
+                half_width = (max_distance - min_distance) * blend_factor * 0.5
+                blend_start = -half_width
+                blend_end = half_width
 
             # 一次性移除所有相关顶点在中间组的权重
             vert_indices_to_remove = [v[0] for v in vertices_to_process]
             obj.vertex_groups[middle_group_index].remove(vert_indices_to_remove)
 
             # 遍历并分配权重
-            for vert_index, original_weight, position in vertices_to_process:
-                if use_custom_split:
-                    # 根据顶点到平面的距离计算混合因子
-                    s_factor = _smoothstep(blend_start, blend_end, position)
-                else:
-                    # 根据X坐标计算混合因子
-                    s_factor = _smoothstep(blend_start, blend_end, position)
+            for vert_index, original_weight, distance in vertices_to_process:
+                # 根据顶点到平面的距离计算混合因子
+                s_factor = self._smoothstep(blend_start, blend_end, distance)
 
                 # 计算分配给左右组的权重
                 weight_left = original_weight * s_factor
@@ -505,10 +594,7 @@ class L4D2_OT_ProcessVertexGroups(Operator):
                 if weight_right > 0.0001:
                     obj.vertex_groups[right_group_index].add([vert_index], weight_right, 'ADD')
 
-            if use_custom_split:
-                self.report({'INFO'}, f"使用自定义分割线完成二分权重 (混合因子: {blend_factor:.2f})")
-            else:
-                self.report({'INFO'}, f"使用X轴完成二分权重 (混合因子: {blend_factor:.2f})")
+            self.report({'INFO'}, f"使用自定义分割线完成二分权重 (混合因子: {blend_factor:.2f})")
         else:
             self.report({'WARNING'}, "一个或多个指定的顶点组不存在")
 
@@ -587,6 +673,9 @@ class L4D2_OT_DrawSplitLine(Operator):
         # 重置状态
         self.__class__._state = 'NONE'
         context.scene.use_custom_split_line = False
+        
+        # 设置分割模式为自定义
+        context.scene.split_mode = 'CUSTOM'
         
         # 设置模态处理器
         context.window_manager.modal_handler_add(self)
@@ -670,6 +759,31 @@ class L4D2_OT_DrawSplitLine(Operator):
         if context.area:
             context.area.tag_redraw()
 
+# 添加L4D2_OT_SetSplitMode类
+class L4D2_OT_SetSplitMode(Operator):
+    bl_idname = "l4d2.set_split_mode"
+    bl_label = "设置分割模式"
+    bl_description = "设置二分权重的分割模式"
+    
+    mode: bpy.props.StringProperty()
+    
+    def execute(self, context):
+        scene = context.scene
+        
+        # 设置分割模式
+        scene.split_mode = self.mode
+        
+        # 如果选择自定义分割线模式，处理相关状态
+        if self.mode == 'CUSTOM':
+            # 如果尚未设置自定义分割线，启动绘制操作
+            if not scene.use_custom_split_line:
+                bpy.ops.l4d2.draw_split_line('INVOKE_DEFAULT')
+        else:
+            # 如果不是自定义模式，禁用自定义分割线
+            scene.use_custom_split_line = False
+            
+        return {'FINISHED'}
+
 # 注册类列表
 classes = [
     VertexGroupItem,
@@ -683,7 +797,8 @@ classes = [
     L4D2_OT_ClearVertexGroups,
     L4D2_OT_RemoveVertexGroup,
     L4D2_OT_ProcessVertexGroups,
-    L4D2_OT_DrawSplitLine
+    L4D2_OT_DrawSplitLine,
+    L4D2_OT_SetSplitMode
 ]
 
 def register():
@@ -742,6 +857,20 @@ def register():
                 description="启用后二分权重将使用自定义分割线而非X轴",
                 default=False
             )
+            
+        # 添加分割模式属性
+        if not hasattr(bpy.types.Scene, 'split_mode'):
+            bpy.types.Scene.split_mode = bpy.props.EnumProperty(
+                name="分割模式",
+                description="选择权重分割的轴向或方式",
+                items=[
+                    ('X_AXIS', "X轴", "沿X轴分割权重", 'AXIS_SIDE', 0),
+                    ('Y_AXIS', "Y轴", "沿Y轴分割权重", 'AXIS_FRONT', 1),
+                    ('Z_AXIS', "Z轴", "沿Z轴分割权重", 'AXIS_TOP', 2),
+                    ('CUSTOM', "自定义", "使用自定义分割线", 'CURVE_PATH', 3),
+                ],
+                default='X_AXIS'
+            )
     except Exception as e:
         # 抑制属性注册错误的消息
         print(f"Error registering scene properties: {e}") # 打印错误以便调试
@@ -774,6 +903,10 @@ def unregister():
             
         if hasattr(bpy.types.Scene, 'use_custom_split_line'):
             del bpy.types.Scene.use_custom_split_line
+            
+        # 删除分割模式属性
+        if hasattr(bpy.types.Scene, 'split_mode'):
+            del bpy.types.Scene.split_mode
     except Exception as e:
         # 抑制删除属性错误的消息
         print(f"Error unregistering scene properties: {e}") # 打印错误以便调试
