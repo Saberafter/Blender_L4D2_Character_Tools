@@ -1629,7 +1629,7 @@ class L4D2_PT_BoneModifyPanel(bpy.types.Panel):
         layout = self.layout
         layout.operator("l4d2.rigging_operator", icon="GROUP_BONE")
         layout.operator("l4d2.grafting_operator", icon="GP_ONLY_SELECTED")
-        layout.operator("l4d2.rename_bones_operator", icon="OUTLINER_OB_FONT")
+        # layout.operator("l4d2.rename_bones_operator", icon="OUTLINER_OB_FONT")
 
 
 

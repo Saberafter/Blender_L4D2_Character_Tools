@@ -1,11 +1,13 @@
 import bpy
+import os
 from bpy.props import StringProperty, CollectionProperty, PointerProperty, FloatProperty, FloatVectorProperty, BoolProperty
 from bpy.types import PropertyGroup, Operator, Panel, UIList
 from mathutils import Vector
 from bpy_extras import view3d_utils
+from bpy.app.translations import pgettext_iface as _
 
 class VertexGroupItem(PropertyGroup):
-    name: StringProperty(name="顶点组名称")
+    name: StringProperty(name=_("Vertex Group Name"))
 
 class L4D2_UL_VertexGroups(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
@@ -15,7 +17,7 @@ class L4D2_UL_VertexGroups(UIList):
             remove_op.index = data.vertex_group_names.values().index(item)
 
 class L4D2_PT_WeightsPanel(Panel):
-    bl_label = "权重编辑工具"
+    bl_label = _("Weight Editing Tools")
     bl_idname = "L4D2_PT_WeightsPanel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -26,7 +28,7 @@ class L4D2_PT_WeightsPanel(Panel):
         scene = context.scene
 
         # 添加顶点组编辑的折叠开关
-        layout.prop(scene, "bl_VGE", text="顶点组编辑", icon="TRIA_DOWN" if scene.bl_VGE else "TRIA_RIGHT")
+        layout.prop(scene, "bl_VGE", text=_("Vertex Group Editing"), icon="TRIA_DOWN" if scene.bl_VGE else "TRIA_RIGHT")
 
         # 如果折叠开关打开，显示详细控制
         if scene.bl_VGE:
@@ -35,12 +37,12 @@ class L4D2_PT_WeightsPanel(Panel):
                 obj = bpy.data.objects.get(scene.target_mesh_object)
                 if obj:
                     row = layout.row()
-                    row.label(text=f"目标物体: {obj.name}")
+                    row.label(text=f"{_('Target Object:')} {obj.name}")
             
             # 添加从骨骼添加按钮
             row = layout.row(align=True)
-            row.operator("scene.add_from_selected_bones", text="从选中骨骼添加", icon="BONE_DATA")
-            row.operator("scene.clear_vertex_groups", text="重置", icon="FILE_REFRESH")
+            row.operator("scene.add_from_selected_bones", text=_("Add from Selected Bones"), icon="BONE_DATA")
+            row.operator("scene.clear_vertex_groups", text=_("Reset"), icon="FILE_REFRESH")
             
             # 显示已添加的顶点组列表
             layout.template_list("L4D2_UL_VertexGroups", "", scene, "vertex_group_names", scene, "active_vertex_group_index", rows=3)
@@ -49,16 +51,16 @@ class L4D2_PT_WeightsPanel(Panel):
             if len(scene.vertex_group_names) > 0:
                 # 将两个按钮分开为两列
                 row1 = layout.row()
-                row1.operator("l4d2.process_vertex_groups", text="合并顶点组").operation = 'MERGE'
+                row1.operator("l4d2.process_vertex_groups", text=_("Merge Vertex Groups")).operation = 'MERGE'
                 row2 = layout.row()
-                row2.operator("l4d2.process_vertex_groups", text="均分权重").operation = 'EVEN_WEIGHT_TRANSFER'
+                row2.operator("l4d2.process_vertex_groups", text=_("Even Weight Transfer")).operation = 'EVEN_WEIGHT_TRANSFER'
 
                 # 如果顶点组数量足够显示二分权重选项
                 if len(scene.vertex_group_names) >= 3:
                     layout.separator()
                     
                     # 第一行：分割模式按钮
-                    layout.label(text="分割模式:")
+                    layout.label(text=_("Split Mode:"))
                     
                     # 创建分割模式按钮组
                     split_mode_row = layout.row(align=True)
@@ -68,27 +70,27 @@ class L4D2_PT_WeightsPanel(Panel):
                     
                     # X轴按钮
                     icon_x = 'RADIOBUT_ON' if split_mode == 'X_AXIS' else 'RADIOBUT_OFF'
-                    x_op = split_mode_row.operator("l4d2.set_split_mode", text="X轴", icon=icon_x, depress=(split_mode == 'X_AXIS'))
+                    x_op = split_mode_row.operator("l4d2.set_split_mode", text=_("X Axis"), icon=icon_x, depress=(split_mode == 'X_AXIS'))
                     x_op.mode = 'X_AXIS'
                     
                     # Y轴按钮
                     icon_y = 'RADIOBUT_ON' if split_mode == 'Y_AXIS' else 'RADIOBUT_OFF'
-                    y_op = split_mode_row.operator("l4d2.set_split_mode", text="Y轴", icon=icon_y, depress=(split_mode == 'Y_AXIS'))
+                    y_op = split_mode_row.operator("l4d2.set_split_mode", text=_("Y Axis"), icon=icon_y, depress=(split_mode == 'Y_AXIS'))
                     y_op.mode = 'Y_AXIS'
                     
                     # Z轴按钮
                     icon_z = 'RADIOBUT_ON' if split_mode == 'Z_AXIS' else 'RADIOBUT_OFF'
-                    z_op = split_mode_row.operator("l4d2.set_split_mode", text="Z轴", icon=icon_z, depress=(split_mode == 'Z_AXIS'))
+                    z_op = split_mode_row.operator("l4d2.set_split_mode", text=_("Z Axis"), icon=icon_z, depress=(split_mode == 'Z_AXIS'))
                     z_op.mode = 'Z_AXIS'
                     
                     # 自定义分割线按钮
                     icon_custom = 'RADIOBUT_ON' if split_mode == 'CUSTOM' else 'RADIOBUT_OFF'
-                    custom_op = split_mode_row.operator("l4d2.draw_split_line", text="自定义", icon=icon_custom, depress=(split_mode == 'CUSTOM'))
+                    custom_op = split_mode_row.operator("l4d2.draw_split_line", text=_("Custom"), icon=icon_custom, depress=(split_mode == 'CUSTOM'))
                     
                     # 如果当前是自定义分割线模式且未设置，显示警告
                     if split_mode == 'CUSTOM' and not scene.use_custom_split_line:
                         warning_row = layout.row()
-                        warning_row.label(text="请先绘制分割线", icon='ERROR')
+                        warning_row.label(text=_("Please draw the split line first"), icon='ERROR')
                     
                     # 第二行：混合因子滑块
                     blend_row = layout.row()
@@ -97,33 +99,33 @@ class L4D2_PT_WeightsPanel(Panel):
                     # 第三行：二分权重执行按钮
                     weight_btn_row = layout.row()
                     weight_btn_row.scale_y = 1.2
-                    weight_btn_row.operator("l4d2.process_vertex_groups", text="执行二分权重").operation = 'WEIGHT_TRANSFER'
+                    weight_btn_row.operator("l4d2.process_vertex_groups", text=_("Execute Bisect Weight")).operation = 'WEIGHT_TRANSFER'
             else:
-                layout.label(text="请先添加顶点组")
+                layout.label(text=_("Please add vertex groups first"))
 
 class L4D2_OT_AddFromSelectedBones(Operator):
     bl_idname = "scene.add_from_selected_bones"
-    bl_label = "从选中骨骼添加"
-    bl_description = "从姿势模式下选中的骨骼自动添加对应的顶点组"
+    bl_label = _("Add from Selected Bones")
+    bl_description = _("Automatically add corresponding vertex groups from bones selected in pose mode")
     
     def execute(self, context):
         # 检查是否在pose mode
         if not (context.active_object and context.active_object.type == 'ARMATURE' 
                 and context.active_object.mode == 'POSE'):
-            self.report({'WARNING'}, "请在姿势模式下选择骨骼")
+            self.report({'WARNING'}, _("Please select bones in Pose Mode"))
             return {'CANCELLED'}
             
         # 获取选中的骨骼
         armature = context.active_object
         selected_bones = [bone.name for bone in armature.pose.bones if bone.bone.select]
         if not selected_bones:
-            self.report({'WARNING'}, "未选择任何骨骼")
+            self.report({'WARNING'}, _("No bones selected"))
             return {'CANCELLED'}
         
         # 获取关联的网格物体
         related_objects = self.get_related_mesh_objects(armature)
         if not related_objects:
-            self.report({'WARNING'}, "未找到与骨架关联的网格物体")
+            self.report({'WARNING'}, _("Could not find mesh objects associated with the armature"))
             return {'CANCELLED'}
         
         # 处理物体选择
@@ -167,9 +169,9 @@ class L4D2_OT_AddFromSelectedBones(Operator):
                 not_found += 1
         
         if added > 0:
-            self.report({'INFO'}, f"已添加{added}个顶点组")
+            self.report({'INFO'}, f"{_('Added')} {added} {_('vertex groups')}")
         if not_found > 0:
-            self.report({'WARNING'}, f"{not_found}个骨骼名称在顶点组中不存在")
+            self.report({'WARNING'}, f"{not_found} {_('bone names do not exist in vertex groups')}")
     
     def get_related_mesh_objects(self, armature):
         """获取与骨架关联的所有网格物体"""
@@ -192,7 +194,7 @@ class L4D2_OT_AddFromSelectedBones(Operator):
 
 class L4D2_OT_SelectMeshObject(Operator):
     bl_idname = "wm.select_mesh_object"
-    bl_label = "选择目标物体"
+    bl_label = _("Select Target Object")
     
     # 存储用户选择的物体名称
     selected_object: StringProperty(default="")
@@ -205,7 +207,7 @@ class L4D2_OT_SelectMeshObject(Operator):
     
     def draw(self, context):
         layout = self.layout
-        layout.label(text="选择要处理的目标物体:")
+        layout.label(text=_("Select the target object to process:"))
         
         # 获取当前选中的物体名称
         current_object = self.selected_object
@@ -267,13 +269,13 @@ class L4D2_OT_SelectMeshObject(Operator):
                 not_found += 1
         
         if added > 0:
-            self.report({'INFO'}, f"已添加{added}个顶点组")
+            self.report({'INFO'}, f"{_('Added')} {added} {_('vertex groups')}")
         if not_found > 0:
-            self.report({'WARNING'}, f"{not_found}个骨骼名称在顶点组中不存在")
+            self.report({'WARNING'}, f"{not_found} {_('bone names do not exist in vertex groups')}")
 
 class L4D2_OT_SelectObjectItem(Operator):
     bl_idname = "wm.select_object_item"
-    bl_label = "选择物体项"
+    bl_label = _("Select Object Item")
     
     object_name: StringProperty()
     
@@ -291,7 +293,7 @@ class L4D2_OT_SelectObjectItem(Operator):
 
 class L4D2_OT_SetTargetMesh(Operator):
     bl_idname = "scene.set_target_mesh"
-    bl_label = "设置目标物体"
+    bl_label = _("Set Target Object")
     
     object_name: StringProperty()
     
@@ -302,21 +304,21 @@ class L4D2_OT_SetTargetMesh(Operator):
 
 class L4D2_OT_ClearVertexGroups(Operator):
     bl_idname = "scene.clear_vertex_groups"
-    bl_label = "清空顶点组列表"
-    bl_description = "清空当前的顶点组列表并重置目标物体选择，便于切换到新的骨架和物体"
+    bl_label = _("Clear Vertex Group List")
+    bl_description = _("Clear the current vertex group list and reset target object selection for switching to new armatures and objects")
     
     def execute(self, context):
         # 清空顶点组列表
         context.scene.vertex_group_names.clear()
         # 清空目标物体选择
         context.scene.target_mesh_object = ""
-        self.report({'INFO'}, "已清空顶点组列表和目标物体选择")
+        self.report({'INFO'}, _("Vertex group list and target object selection cleared"))
         return {'FINISHED'}
 
 class L4D2_OT_RemoveVertexGroup(Operator):
     bl_idname = "scene.remove_vertex_group"
-    bl_label = "移除顶点组"
-    bl_description = "从列表中移除此顶点组"
+    bl_label = _("Remove Vertex Group")
+    bl_description = _("Remove this vertex group from the list")
     
     index: bpy.props.IntProperty()
     
@@ -326,26 +328,28 @@ class L4D2_OT_RemoveVertexGroup(Operator):
 
 class L4D2_OT_ProcessVertexGroups(Operator):
     bl_idname = "l4d2.process_vertex_groups"
-    bl_label = "处理顶点组"
-    bl_description = "合并: 合并后续组权重到首个组。\n均分: 均分首个组权重给后续组。\n二分: 根据选择的方向或自定义线分配首组权重给第2、3组。"
+    bl_label = _("Process Vertex Groups")
+    bl_description = _("Merge: Merge weights of subsequent groups into the first group.\n"
+                       "Even: Evenly distribute weights of the first group to subsequent groups.\n"
+                       "Bisect: Distribute the first group's weight to the 2nd and 3rd groups based on the selected axis or custom line.")
     
     operation: bpy.props.StringProperty()
     
     def execute(self, context):
         scene = context.scene
         if not scene.target_mesh_object:
-            self.report({'WARNING'}, "未设置目标物体")
+            self.report({'WARNING'}, _("Target object not set"))
             return {'CANCELLED'}
             
         obj = bpy.data.objects.get(scene.target_mesh_object)
         if not obj or obj.type != 'MESH':
-            self.report({'WARNING'}, "目标物体无效或不是网格物体")
+            self.report({'WARNING'}, _("Target object is invalid or not a mesh object"))
             return {'CANCELLED'}
         
         group_names = [group.name for group in scene.vertex_group_names if group.name]
         
         if len(group_names) < 2:
-            self.report({'WARNING'}, "请至少选择两个顶点组")
+            self.report({'WARNING'}, _("Please select at least two vertex groups"))
             return {'CANCELLED'}
         
         if self.operation == 'MERGE':
@@ -354,7 +358,7 @@ class L4D2_OT_ProcessVertexGroups(Operator):
             self.even_weight_transfer(context, obj, group_names)
         elif self.operation == 'WEIGHT_TRANSFER':
             if len(group_names) < 3:
-                self.report({'WARNING'}, "二分权重需要至少选择三个顶点组")
+                self.report({'WARNING'}, _("Bisect weight requires at least three vertex groups selected"))
                 return {'CANCELLED'}
             self.weight_transfer(context, obj, group_names)
         
@@ -373,7 +377,7 @@ class L4D2_OT_ProcessVertexGroups(Operator):
                     if weight > 0.0:
                         target_group.add([vertex.index], weight, 'ADD')
                 obj.vertex_groups.remove(group)
-        self.report({'INFO'}, "顶点组合并完成")
+        self.report({'INFO'}, _("Vertex group merge completed"))
 
     def even_weight_transfer(self, context, obj, group_names):
         middle_group_name = group_names[0]
@@ -394,9 +398,9 @@ class L4D2_OT_ProcessVertexGroups(Operator):
                         for target_group_index in target_group_indices:
                             obj.vertex_groups[target_group_index].add([vert.index], weight, 'ADD')
 
-            self.report({'INFO'}, "权重均匀分配完成")
+            self.report({'INFO'}, _("Weight distribution completed"))
         else:
-            self.report({'WARNING'}, "一个或多个指定的顶点组不存在")
+            self.report({'WARNING'}, _("One or more specified vertex groups do not exist"))
 
     # 辅助函数：Smoothstep
     def _smoothstep(self, edge0, edge1, x):
@@ -461,7 +465,7 @@ class L4D2_OT_ProcessVertexGroups(Operator):
                         break
             
             if not vertices_to_process:
-                self.report({'INFO'}, "没有找到中间顶点组影响的顶点")
+                self.report({'INFO'}, _("No vertices found affected by the middle vertex group"))
                 return
             
             # 计算中心线和混合区域
@@ -503,9 +507,9 @@ class L4D2_OT_ProcessVertexGroups(Operator):
                 if weight_right > 0.0001:
                     obj.vertex_groups[right_group_index].add([vert_index], weight_right, 'ADD')
 
-            self.report({'INFO'}, f"使用{axis}轴完成二分权重 (混合因子: {blend_factor:.2f})")
+            self.report({'INFO'}, f"{_('Bisect weight completed using')} {axis} {_('axis')} ({_('Blend Factor:')} {blend_factor:.2f})")
         else:
-            self.report({'WARNING'}, "一个或多个指定的顶点组不存在")
+            self.report({'WARNING'}, _("One or more specified vertex groups do not exist"))
     
     def weight_transfer_custom(self, context, obj, group_names):
         """使用自定义分割线进行二分权重转移"""
@@ -558,7 +562,7 @@ class L4D2_OT_ProcessVertexGroups(Operator):
             
             # 如果没有影响顶点
             if not vertices_to_process:
-                self.report({'INFO'}, "没有找到中间顶点组影响的顶点")
+                self.report({'INFO'}, _("No vertices found affected by the middle vertex group"))
                 return
             
             # 计算距离的最大和最小值用于混合
@@ -594,9 +598,9 @@ class L4D2_OT_ProcessVertexGroups(Operator):
                 if weight_right > 0.0001:
                     obj.vertex_groups[right_group_index].add([vert_index], weight_right, 'ADD')
 
-            self.report({'INFO'}, f"使用自定义分割线完成二分权重 (混合因子: {blend_factor:.2f})")
+            self.report({'INFO'}, f"{_('Bisect weight completed using custom split line')} ({_('Blend Factor:')} {blend_factor:.2f})")
         else:
-            self.report({'WARNING'}, "一个或多个指定的顶点组不存在")
+            self.report({'WARNING'}, _("One or more specified vertex groups do not exist"))
 
 # 用于存储关联物体列表的属性类
 class RelatedObjectItem(PropertyGroup):
@@ -605,8 +609,8 @@ class RelatedObjectItem(PropertyGroup):
 # 添加L4D2_OT_DrawSplitLine模态操作符类
 class L4D2_OT_DrawSplitLine(Operator):
     bl_idname = "l4d2.draw_split_line"
-    bl_label = "绘制分割线"
-    bl_description = "在3D视图中绘制分割线，用于自定义权重分割方向"
+    bl_label = _("Draw Split Line")
+    bl_description = _("Draw a split line in the 3D view for custom weight splitting direction")
     
     # 存储鼠标状态和操作阶段
     _state = 'NONE'  # 可能的状态: 'NONE', 'START', 'END'
@@ -667,7 +671,7 @@ class L4D2_OT_DrawSplitLine(Operator):
     def invoke(self, context, event):
         # 检查是否在正确的上下文中
         if context.area.type != 'VIEW_3D':
-            self.report({'WARNING'}, "必须在3D视图中使用此工具")
+            self.report({'WARNING'}, _("This tool must be used in the 3D View"))
             return {'CANCELLED'}
         
         # 重置状态
@@ -686,7 +690,7 @@ class L4D2_OT_DrawSplitLine(Operator):
             self.__class__.draw_callback_px, args, 'WINDOW', 'POST_PIXEL')
         
         # 提示用户
-        self.report({'INFO'}, "单击设置分割线起点，移动后再次单击设置终点")
+        self.report({'INFO'}, _("Click to set the start point, move, then click again to set the end point"))
         return {'RUNNING_MODAL'}
     
     def modal(self, context, event):
@@ -698,7 +702,7 @@ class L4D2_OT_DrawSplitLine(Operator):
         # ESC键取消操作
         elif event.type in {'ESC', 'RIGHTMOUSE'}:
             self.cleanup(context)
-            self.report({'INFO'}, "取消绘制分割线")
+            self.report({'INFO'}, _("Cancelled drawing split line"))
             return {'CANCELLED'}
         
         # 左键点击设置点
@@ -733,7 +737,7 @@ class L4D2_OT_DrawSplitLine(Operator):
                 # 设置起点
                 context.scene.split_line_start = point_3d
                 self.__class__._state = 'START'
-                self.report({'INFO'}, "起点已设置，移动鼠标并再次单击设置终点")
+                self.report({'INFO'}, _("Start point set, move mouse and click again to set end point"))
             elif self.__class__._state == 'START':
                 # 设置终点
                 context.scene.split_line_end = point_3d
@@ -744,7 +748,7 @@ class L4D2_OT_DrawSplitLine(Operator):
                 
                 # 完成操作
                 self.cleanup(context)
-                self.report({'INFO'}, "分割线已设置")
+                self.report({'INFO'}, _("Split line set"))
                 return {'FINISHED'}
         
         return {'RUNNING_MODAL'}
@@ -762,8 +766,8 @@ class L4D2_OT_DrawSplitLine(Operator):
 # 添加L4D2_OT_SetSplitMode类
 class L4D2_OT_SetSplitMode(Operator):
     bl_idname = "l4d2.set_split_mode"
-    bl_label = "设置分割模式"
-    bl_description = "设置二分权重的分割模式"
+    bl_label = _("Set Split Mode")
+    bl_description = _("Set the splitting mode for bisect weight")
     
     mode: bpy.props.StringProperty()
     
@@ -813,20 +817,20 @@ def register():
         bpy.types.Scene.vertex_group_names = CollectionProperty(type=VertexGroupItem)
         bpy.types.Scene.active_vertex_group_index = bpy.props.IntProperty(default=0)
         bpy.types.Scene.target_mesh_object = StringProperty(
-            name="目标网格物体",
-            description="用于添加顶点组的目标网格物体"
+            name=_("Target Mesh Object"),
+            description=_("Target mesh object for adding vertex groups")
         )
         bpy.types.Scene.related_objects = CollectionProperty(type=RelatedObjectItem)
         bpy.types.Scene.bl_VGE = bpy.props.BoolProperty(
-            name="顶点组编辑",
-            description="顶点组编辑",
+            name=_("Vertex Group Editing"),
+            description=_("Vertex Group Editing"),
             default=False
         )
         # 确认 blend_factor 属性已添加
         if not hasattr(bpy.types.Scene, 'blend_factor'): # 添加检查确保不重复添加
             bpy.types.Scene.blend_factor = bpy.props.FloatProperty(
-                name="混合因子",
-                description="二分权重时过渡区域的平滑度 (0=硬分割, 1=最大平滑)",
+                name=_("Blend Factor"),
+                description=_("Smoothness of the transition area for bisect weight (0=Hard Split, 1=Max Smoothness)"),
                 default=0.5,
                 min=0.0,
                 max=1.0
@@ -835,8 +839,8 @@ def register():
         # 添加分割线属性
         if not hasattr(bpy.types.Scene, 'split_line_start'):
             bpy.types.Scene.split_line_start = FloatVectorProperty(
-                name="分割线起点",
-                description="自定义分割线的起点",
+                name=_("Split Line Start"),
+                description=_("Start point of the custom split line"),
                 subtype='XYZ',
                 size=3,
                 default=(0, 0, 0)
@@ -844,8 +848,8 @@ def register():
             
         if not hasattr(bpy.types.Scene, 'split_line_end'):
             bpy.types.Scene.split_line_end = FloatVectorProperty(
-                name="分割线终点",
-                description="自定义分割线的终点",
+                name=_("Split Line End"),
+                description=_("End point of the custom split line"),
                 subtype='XYZ',
                 size=3,
                 default=(0, 0, 0)
@@ -853,21 +857,21 @@ def register():
             
         if not hasattr(bpy.types.Scene, 'use_custom_split_line'):
             bpy.types.Scene.use_custom_split_line = BoolProperty(
-                name="使用自定义分割线",
-                description="启用后二分权重将使用自定义分割线而非X轴",
+                name=_("Use Custom Split Line"),
+                description=_("When enabled, bisect weight uses the custom split line instead of an axis"),
                 default=False
             )
             
         # 添加分割模式属性
         if not hasattr(bpy.types.Scene, 'split_mode'):
             bpy.types.Scene.split_mode = bpy.props.EnumProperty(
-                name="分割模式",
-                description="选择权重分割的轴向或方式",
+                name=_("Split Mode"),
+                description=_("Select the axis or method for weight splitting"),
                 items=[
-                    ('X_AXIS', "X轴", "沿X轴分割权重", 'AXIS_SIDE', 0),
-                    ('Y_AXIS', "Y轴", "沿Y轴分割权重", 'AXIS_FRONT', 1),
-                    ('Z_AXIS', "Z轴", "沿Z轴分割权重", 'AXIS_TOP', 2),
-                    ('CUSTOM', "自定义", "使用自定义分割线", 'CURVE_PATH', 3),
+                    ('X_AXIS', _("X Axis"), _("Split weights along the X axis"), 'AXIS_SIDE', 0),
+                    ('Y_AXIS', _("Y Axis"), _("Split weights along the Y axis"), 'AXIS_FRONT', 1),
+                    ('Z_AXIS', _("Z Axis"), _("Split weights along the Z axis"), 'AXIS_TOP', 2),
+                    ('CUSTOM', _("Custom"), _("Use custom split line"), 'CURVE_PATH', 3),
                 ],
                 default='X_AXIS'
             )

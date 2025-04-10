@@ -129,21 +129,6 @@ data = {
         "Select by pattern": "按名称选择",
         "By default, turn off case distinction and turn on merge selection": "默认关闭大小写区分和打开并入选择",
 
-        "Vertex Group Editing": "顶点组编辑",
-
-
-        "Add Vertex Group": "添加顶点组",
-        "Add a vertex group field to select the vertex group to be processed by the current model": "增加一个顶点组栏位，用来选择当前模型需要处理的顶点组",
-
-        "Remove Vertex Group": "删除顶点组",
-        "Remove this vertex group field": "删除这个顶点组栏位",
-
-        "Process Vertex Group": "处理顶点组",
-        "The following functions are performed only on the vertex groups within the columns created with the + button:\nMerge vertex groups: Merge the weights of the vertex groups after the first column into the first column vertex group and delete these vertex groups(careful).\nEven weight: Evenly distribute the weights of the first column vertex group to the other column vertex groups.\nBisect weight: Using the X-pos of the vertices in the first column vertex group as a reference, divide the weights to the left and right. Assign the weights of the left half to the vertex group in the second column, and the weights of the right half to the vertex group in the third column": "以下功能仅针对使用+号创建的栏内顶点组进行操作\n合并顶点组：把第一栏以后的顶点组权重合并到第一栏顶点组中，并删除这些顶点组谨慎操作\n均匀权重：把第一栏顶点组的权重均匀分配给其他栏顶点组\n二分权重：以第一栏顶点组内顶点X坐标为参照，左右划分权重，左半边权重划给第二栏顶点组，右半边权重划给第三栏顶点组",
-        "Merge vertex groups": "合并顶点组",
-        "Even weight": "均匀权重",
-        "Bisect weight": "二分权重",
-        
 
         "VRD Action Management:": "VRD动作管理",
         "Add New Project": "添加VRD动作项目",
@@ -281,4 +266,81 @@ data = {
         "Renamed": "已重命名",
         "bones successfully": "个骨骼成功",
         "No bones were renamed, please check the mapping relationships": "没有骨骼被重命名，请检查映射关系",
+        
+        # weights.py UI Elements
+        "Weight Editing Tools": "权重编辑工具",
+        "Vertex Group Editing": "顶点组编辑", # Also used as BoolProperty name/desc
+        "Target Object:": "目标物体:",
+        "Add from Selected Bones": "从选中骨骼添加", # Also used as Operator label
+        "Reset": "重置",
+        "Merge Vertex Groups": "合并顶点组",
+        "Even Weight Transfer": "均分权重",
+        "Split Mode:": "分割模式:",
+        "X Axis": "X轴", # Also used in EnumProperty item
+        "Y Axis": "Y轴", # Also used in EnumProperty item
+        "Z Axis": "Z轴", # Also used in EnumProperty item
+        "Custom": "自定义", # Also used in EnumProperty item
+        "Please draw the split line first": "请先绘制分割线",
+        "Execute Bisect Weight": "执行二分权重",
+        "Please add vertex groups first": "请先添加顶点组",
+        "Select Target Object": "选择目标物体",
+        "Select the target object to process:": "选择要处理的目标物体:",
+        "Select Object Item": "选择物体项",
+        "Set Target Object": "设置目标物体",
+        "Clear Vertex Group List": "清空顶点组列表",
+        "Clear the current vertex group list and reset target object selection for switching to new armatures and objects": "清空当前的顶点组列表并重置目标物体选择，便于切换到新的骨架和物体",
+        "Vertex group list and target object selection cleared": "已清空顶点组列表和目标物体选择",
+        "Remove Vertex Group": "移除顶点组", # Also used as Operator label
+        "Remove this vertex group from the list": "从列表中移除此顶点组",
+        "Process Vertex Groups": "处理顶点组",
+        "Merge: Merge weights of subsequent groups into the first group.\nEven: Evenly distribute weights of the first group to subsequent groups.\nBisect: Distribute the first group's weight to the 2nd and 3rd groups based on the selected axis or custom line.": "合并: 合并后续组权重到首个组。\n均分: 均分首个组权重给后续组。\n二分: 根据选择的方向或自定义线分配首组权重给第2、3组。",
+        "Target object not set": "未设置目标物体",
+        "Target object is invalid or not a mesh object": "目标物体无效或不是网格物体",
+        "Please select at least two vertex groups": "请至少选择两个顶点组",
+        "Bisect weight requires at least three vertex groups selected": "二分权重需要至少选择三个顶点组",
+        "Vertex group merge completed": "顶点组合并完成",
+        "Weight distribution completed": "权重均匀分配完成",
+        "One or more specified vertex groups do not exist": "一个或多个指定的顶点组不存在",
+        "No vertices found affected by the middle vertex group": "没有找到中间顶点组影响的顶点",
+        "Bisect weight completed using": "使用", # Part of f-string
+        "axis": "轴完成二分权重", # Part of f-string
+        "Blend Factor:": "混合因子:", # Part of f-string, also FloatProperty name
+        "Bisect weight completed using custom split line": "使用自定义分割线完成二分权重", # Part of f-string
+        "Draw Split Line": "绘制分割线",
+        "Draw a split line in the 3D view for custom weight splitting direction": "在3D视图中绘制分割线，用于自定义权重分割方向",
+        "This tool must be used in the 3D View": "必须在3D视图中使用此工具",
+        "Click to set the start point, move, then click again to set the end point": "单击设置分割线起点，移动后再次单击设置终点",
+        "Cancelled drawing split line": "取消绘制分割线",
+        "Start point set, move mouse and click again to set end point": "起点已设置，移动鼠标并再次单击设置终点",
+        "Split line set": "分割线已设置",
+        "Set Split Mode": "设置分割模式",
+        "Set the splitting mode for bisect weight": "设置二分权重的分割模式",
+
+        # weights.py Operator Labels/Descriptions
+        "Automatically add corresponding vertex groups from bones selected in pose mode": "从姿势模式下选中的骨骼自动添加对应的顶点组",
+        "Please select bones in Pose Mode": "请在姿势模式下选择骨骼",
+        "No bones selected": "未选择任何骨骼",
+        "Could not find mesh objects associated with the armature": "未找到与骨架关联的网格物体",
+        "Added": "已添加", # Part of f-string
+        "vertex groups": "个顶点组", # Part of f-string
+        "bone names do not exist in vertex groups": "个骨骼名称在顶点组中不存在", # Part of f-string
+
+        # weights.py Property Names/Descriptions
+        "Vertex Group Name": "顶点组名称",
+        "Target Mesh Object": "目标网格物体",
+        "Target mesh object for adding vertex groups": "用于添加顶点组的目标网格物体",
+        # "Vertex Group Editing": "顶点组编辑", # Defined above
+        "Smoothness of the transition area for bisect weight (0=Hard Split, 1=Max Smoothness)": "二分权重时过渡区域的平滑度 (0=硬分割, 1=最大平滑)",
+        "Split Line Start": "分割线起点",
+        "Start point of the custom split line": "自定义分割线的起点",
+        "Split Line End": "分割线终点",
+        "End point of the custom split line": "自定义分割线的终点",
+        "Use Custom Split Line": "使用自定义分割线",
+        "When enabled, bisect weight uses the custom split line instead of an axis": "启用后二分权重将使用自定义分割线而非轴向",
+        "Split Mode": "分割模式", # Also used as EnumProperty name
+        "Select the axis or method for weight splitting": "选择权重分割的轴向或方式",
+        "Split weights along the X axis": "沿X轴分割权重", # EnumProperty item description
+        "Split weights along the Y axis": "沿Y轴分割权重", # EnumProperty item description
+        "Split weights along the Z axis": "沿Z轴分割权重", # EnumProperty item description
+        "Use custom split line": "使用自定义分割线", # EnumProperty item description
 }
