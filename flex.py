@@ -421,19 +421,82 @@ class L4D2_PT_ShapeKeyPanel(bpy.types.Panel):
 
 # UI列表项类定义
 class FLEXMIX_UL_List(bpy.types.UIList):
+    # 添加搜索过滤功能
+    filter_name: StringProperty(
+        name="Search",
+        description="Filter items by name",
+        default=""
+    )
+    
+    use_filter_invert: BoolProperty(
+        name="Invert Filter",
+        description="Invert filter",
+        default=False
+    )
+    
+    # 类属性：用于存储外部搜索条件
+    _search_term = ""
+    
+    @classmethod
+    def set_search_term(cls, term):
+        cls._search_term = term if term else ""
+    
+    # 实现过滤功能
+    def filter_items(self, context, data, propname):
+        items = getattr(data, propname)
+        filtered = [self.bitflag_filter_item] * len(items)
+        
+        # 首先检查是否有内置搜索文本
+        if self.filter_name:
+            for i, item in enumerate(items):
+                if self.filter_name.lower() not in item.name.lower():
+                    filtered[i] &= ~self.bitflag_filter_item
+            
+            # 如果需要反转过滤结果
+            if self.use_filter_invert:
+                for i in range(len(filtered)):
+                    filtered[i] ^= self.bitflag_filter_item
+        
+        # 然后检查是否有类共享的搜索条件
+        elif FLEXMIX_UL_List._search_term:
+            search_term = FLEXMIX_UL_List._search_term.lower()
+            for i, item in enumerate(items):
+                if search_term not in item.name.lower():
+                    filtered[i] &= ~self.bitflag_filter_item
+        
+        # 返回过滤结果和排序方法（这里不做排序）
+        return filtered, []
+
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            # 创建一个启用鼠标点击的行
             row = layout.row(align=True)
+            
+            # 复选框
             row.prop(item, "selected", text="", emboss=False, icon='CHECKBOX_HLT' if item.selected else 'CHECKBOX_DEHLT')
-            row.scale_x = 0.1
-            row.label(text=str(index))  # 新增的代码: 在列表每一项前面加一个数字顺序
-            row.scale_x = 0.9
-            row.prop(item, "name", text="", emboss=False, icon='SHAPEKEY_DATA')
+            
+            # 显示索引
+            row.scale_x = 0.2
+            row.label(text=f"{index:02d}")
+            row.scale_x = 1.0
+            
+            # 使用一个带有点击操作的操作符按钮来显示项目名称
+            props = row.operator("l4d2.toggle_item_selection", text=item.name, emboss=False, icon='SHAPEKEY_DATA')
+            props.index = index
+            
+            # 如果该键有备注，显示信息图标
+            if item.name in key_notes and key_notes[item.name]:
+                row.label(text="", icon='INFO')
         elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
             layout.label(text="", icon='SHAPEKEY_DATA')
 
-    
+    def draw_filter(self, context, layout):
+        # 绘制搜索过滤UI
+        row = layout.row(align=True)
+        row.prop(self, "filter_name", text="", icon='VIEWZOOM')
+        row.prop(self, "use_filter_invert", text="", icon='ARROW_LEFTRIGHT')
+
 class FlexmixItem(PropertyGroup):
     # 字典键的名字。对于每一个flexmix_dict中的键，都会有一个FlexmixItem
     name: StringProperty()
@@ -729,8 +792,15 @@ class L4D2_OT_CreateSelectedKey(bpy.types.Operator):
 
 class L4D2_OT_AllCreate(bpy.types.Operator):
     bl_idname = "l4d2.all_create"
-    bl_label = ""
+    bl_label = "Batch Create"
     bl_description = 'Batch create shape keys in custom order'
+    
+    # 添加搜索字段作为操作符属性
+    search_term: StringProperty(
+        name="Search",
+        description="Filter shape keys by name",
+        default=""
+    )
     
     def invoke(self, context, event):
         # 获取 WindowManager
@@ -746,45 +816,91 @@ class L4D2_OT_AllCreate(bpy.types.Operator):
 
         # 重置当前选中的索引
         wm.flexmix_index = 0
+        
+        # 清空搜索字段
+        self.search_term = ""
 
-        # 调用弹窗
-        return wm.invoke_props_dialog(self, width=250)
+        # 调用更大尺寸的弹窗，提供更好的可视空间
+        return wm.invoke_props_dialog(self, width=400)
 
     def draw(self, context):
         wm = context.window_manager
         layout = self.layout
-        row = layout.row()
-        left = row.column_flow(columns=1, align=True)
-        box = left.box().row()
-
-        # 创建全选/反选二合一的按钮和反选按钮
-        box_left = box.row(align=True)
-        # 创建全选/反选按钮
-        if wm.flexmix_items:
-            if all(item.selected for item in wm.flexmix_items):
-                op = box_left.operator('l4d2.select_action', text='', icon='CHECKBOX_HLT')
-                op.action = 'NONE'
-            else:
-                op = box_left.operator('l4d2.select_action', text='', icon='CHECKBOX_DEHLT')
-                op.action = 'ALL'
-                # 如果有选中的项,则显示反选按钮
-                if any(item.selected for item in wm.flexmix_items):
-                    op_inverse = box_left.operator('l4d2.select_action', text='', icon='UV_SYNC_SELECT')
-                    op_inverse.action = 'INVERSE'
-        box_right = box.row(align=False)
-        box_right.alignment = 'LEFT'
-        # 添加UIList控件
-        left.template_list("FLEXMIX_UL_List", "", wm, "flexmix_items", wm, "flexmix_index")
-        # 添加预设控件
-        row = layout.row()
-        row.prop(wm, "presets", text="Preset")
-        row.operator("l4d2.save_flex_preset", text="", icon="ADD")
-        #row.operator("l4d2.load_flex_preset", text="", icon="IMPORT")
-
-        # 绘制上下移操作按钮
-        col = layout.column(align=True)
-        col.operator("l4d2.flexmix_move_up", icon='TRIA_UP', text="")
-        col.operator("l4d2.flexmix_move_down", icon='TRIA_DOWN', text="")
+        
+        # 顶部区域 - 标题和选择操作
+        title_row = layout.row()
+        
+        # 计算选中的项目数量
+        selected_count = sum(1 for item in wm.flexmix_items if item.selected)
+        total_count = len(wm.flexmix_items)
+        
+        # 显示标题和选中数量
+        title_row.label(text=f"Batch Create Shape Keys ({selected_count}/{total_count} selected)", icon='SHAPEKEY_DATA')
+        
+        # 全选/反选区域 - 更直观的按钮组
+        select_box = layout.box()
+        select_row = select_box.row(align=True)
+        
+        # 添加描述性标签
+        select_row.label(text="Selection:", icon='CHECKBOX_HLT')
+        
+        # 添加带有标签的按钮，使其功能更明确
+        op_all = select_row.operator('l4d2.select_action', text="Select All", icon='CHECKBOX_HLT')
+        op_all.action = 'ALL'
+        
+        op_none = select_row.operator('l4d2.select_action', text="Deselect All", icon='CHECKBOX_DEHLT')
+        op_none.action = 'NONE'
+        
+        op_inverse = select_row.operator('l4d2.select_action', text="Invert", icon='UV_SYNC_SELECT')
+        op_inverse.action = 'INVERSE'
+        
+        # 搜索过滤器
+        filter_row = layout.row(align=True)
+        filter_row.label(text="Search:", icon='VIEWZOOM')
+        filter_row.prop(self, "search_term", text="")
+        
+        # 设置类共享的搜索条件
+        FLEXMIX_UL_List.set_search_term(self.search_term)
+        
+        # 主列表区域 - 更大的列表显示
+        list_box = layout.box()
+        list_row = list_box.row()
+        
+        # 增加列表高度，改善滚动体验
+        list_row.template_list(
+            "FLEXMIX_UL_List", "", 
+            wm, "flexmix_items", 
+            wm, "flexmix_index",
+            rows=12  # 增加行数，提供更好的可视性
+        )
+        
+        # 操作按钮区域
+        tool_col = list_row.column(align=True)
+        tool_col.operator("l4d2.flexmix_move_up", icon='TRIA_UP', text="")
+        tool_col.operator("l4d2.flexmix_move_down", icon='TRIA_DOWN', text="")
+        tool_col.separator()
+        
+        # 添加其他有用的列表操作按钮
+        tool_col.operator("l4d2.add_new_flex_key", icon='ADD', text="")
+        
+        # 预设控件区域 - 更明确的布局
+        preset_box = layout.box()
+        preset_row = preset_box.row(align=True)
+        preset_row.label(text="Preset Management:", icon='PRESET')
+        preset_row.prop(wm, "presets", text="")
+        preset_row.operator("l4d2.save_flex_preset", text="", icon="FILE_TICK")
+        
+        # 备注预览区域 - 显示选中项的备注
+        if wm.flexmix_index >= 0 and wm.flexmix_index < len(wm.flexmix_items):
+            selected_item = wm.flexmix_items[wm.flexmix_index]
+            if selected_item.name in key_notes and key_notes[selected_item.name]:
+                note_box = layout.box()
+                note_box.label(text=f"Note: {key_notes[selected_item.name]}", icon='INFO')
+        
+        # 帮助文本 - 提供使用提示
+        help_box = layout.box()
+        help_row = help_box.row()
+        help_row.label(text="Tip: Select shape keys to create and click OK", icon='QUESTION')
 
     def execute(self, context):
         wm = context.window_manager
@@ -875,6 +991,23 @@ class L4D2_OT_SortShapeKeys(bpy.types.Operator):
 
         return {'FINISHED'}
 
+# 添加一个快速切换选择状态的操作符
+class L4D2_OT_ToggleItemSelection(bpy.types.Operator):
+    bl_idname = "l4d2.toggle_item_selection"
+    bl_label = "Toggle Item Selection"
+    bl_description = "Quickly toggle the selection state of the shape key"
+    bl_options = {'UNDO', 'INTERNAL'}
+    
+    index: IntProperty(description="Index of the item to toggle")
+    
+    def execute(self, context):
+        wm = context.window_manager
+        if self.index >= 0 and self.index < len(wm.flexmix_items):
+            # 切换选择状态
+            wm.flexmix_items[self.index].selected = not wm.flexmix_items[self.index].selected
+            # 更新活动索引
+            wm.flexmix_index = self.index
+        return {'FINISHED'}
 
 classes = [
     L4D2_OT_StoreShapeKeys,
@@ -892,6 +1025,7 @@ classes = [
     L4D2_OT_DeleteFlexKey,
     L4D2_OT_FlexSelectAction,
     L4D2_OT_SaveFlexPreset,
+    L4D2_OT_ToggleItemSelection,  # 添加新的操作符
 ]
 
 def register():

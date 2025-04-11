@@ -275,8 +275,8 @@ class L4D2_PT_BoneTools(bpy.types.Panel):
             
             # 底部按钮
             row = col.row()
-            row.operator("mapping.add_new_mapping", text="添加新映射")
-            row.operator("mapping.apply_changes", text="应用更改")
+            row.operator("mapping.add_new_mapping")
+            row.operator("mapping.apply_changes")
 
         weights.L4D2_PT_WeightsPanel.draw(self, context)
         

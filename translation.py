@@ -231,7 +231,8 @@ data = {
         "Unique Mappings": "独立映射",
         "Common Mappings": "通用映射",
         "Axis Control": "轴控制",
-
+        "Add New Mapping": "添加新映射",
+        "Apply Changes": "应用更改",     
         
         # weights.py UI Elements
         "Weight Editing Tools": "权重编辑工具",
@@ -295,7 +296,7 @@ data = {
         "Vertex Group Name": "顶点组名称",
         "Target Mesh Object": "目标网格物体",
         "Target mesh object for adding vertex groups": "用于添加顶点组的目标网格物体",
-        
+
         # "Vertex Group Editing": "顶点组编辑", # Defined above
         "Smoothness of the transition area for bisect weight (0=Hard Split, 1=Max Smoothness)": "二分权重时过渡区域的平滑度 (0=硬分割, 1=最大平滑)",
         "Split Line Start": "分割线起点",
@@ -412,8 +413,6 @@ data = {
         "Add the captured shape key values into the currently selected dictionary key": "将捕捉到的形态键值添加到当前选定的字典键中",
         "Organize Shape Keys": "整理形态键列表",
         "Automatically delete useless shape keys and organize the shape key list\nBe sure to backup": "自动删除无用形态键整理形态键列表\n注意备份",
-        "Batch Create": "批量创建",
-        "Batch create shape keys in custom order": "批量自选顺序创建形态键",
         "Create Shape Keys": "形态键创建",
         "Create shape keys based on the key selected in the drop-down menu": "根据下拉菜单选择的键创建形态键",
         "Add New Key": "添加新键",
@@ -437,8 +436,20 @@ data = {
         "New version available:": "新版本可用：",
         "Download": "下载",
 
-
-
-        
-
+        # 添加批量创建形态键UI的翻译
+        "Batch Create": "批量创建形态键",
+        "Batch create shape keys in custom order": "批量自选顺序创建形态键",
+        "Search": "搜索",
+        "Filter shape keys by name": "按名称过滤形态键",
+        "Selection:": "选择操作:",
+        "Select All": "全选",
+        "Deselect All": "取消选择",
+        "Invert": "反选",
+        "Preset Management:": "预设管理:",
+        "Note:": "备注:",
+        "Tip: Select shape keys to create and click OK": "提示: 选择要创建的形态键后点击确定",
+        "Toggle Item Selection": "切换项目选择",
+        "Quickly toggle the selection state of the shape key": "快速切换形态键选择状态",
+        "Index of the item to toggle": "要切换的项目索引",
+        "selected": "个已选择",
 }
