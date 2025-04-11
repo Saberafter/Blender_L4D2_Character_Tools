@@ -20,7 +20,7 @@ data = {
         "View3D > Tool Shelf > 💝LCT": "3D视图 > 侧栏 > 💝LCT",
         "A plugin designed to enhance the efficiency of creating Left 4 Dead 2 character mods.": "这是一个旨在提升求生之路2人物Mod制作效率的插件。",
         
-        # 🛠️ General Tools
+        # 🛠️ Bone Tools
         "Valve Rig:": "官方骨架:",
         "Custom Rig:": "自定义骨架:",
 
@@ -90,12 +90,74 @@ data = {
 
         "Graft Bone": "嫁接骨骼",
         "Automatically set the parent-child level of bones based on bone mapping relationships": "根据骨骼映射关系自动设置骨骼的父子级",
+        # GraftingOperator translations
+        "Failed to load mapping data": "映射数据加载失败",
+        "Armature object not selected or selected object is not an armature type": "未选中骨架对象或选中的不是骨架类型",
+        "No available bone mapping relationships, grafting may be incomplete": "没有可用的骨骼映射关系，嫁接可能不完整",
+        "Failed to serialize mapping data": "序列化映射数据失败",
+
 
         "Rename Bone": "重命名骨骼",
         "Rename custom bone names to Valve bone names based on bone mapping relationships": "根据骨骼映射关系把自定义骨骼名字重命名为Valve官方骨骼名字",
 
+        
+        # RenameBonesOperator translations
+        "Target Name": "目标名称",
+        "The new name to rename the bone to": "将骨骼重命名为的新名称",
+        "Current Name": "当前名称",
+        "The current bone name to be renamed": "将被重命名的当前骨骼名称",
+        "Source": "来源",
+        "Source of the mapping relationship": "映射关系的来源",
+        "Confirm Bone Renaming": "确认骨骼重命名",
+        "Renaming Mapping Relationships": "重命名映射关系",
+        "Operation Process:": "操作流程：",
+        "Load mapping relationships": "加载映射关系",
+        "Match custom bones to official bones": "匹配自定义骨骼到官方骨骼",
+        "Rename custom bones to official names": "将自定义骨骼重命名为官方名称",
+        "No bone mapping relationships found that match the current armature": "未找到与当前骨架匹配的骨骼映射关系",
+        "Failed to parse mapping data": "解析映射数据失败",
+        "Renamed": "已重命名",
+        "bones successfully": "个骨骼成功",
+        "No bones were renamed, please check the mapping relationships": "没有骨骼被重命名，请检查映射关系",
+
         "Unbind Preserve Shape": "骨骼断绑保形",
         "Maintain shape and transformation when breaking bone parent-child relationships": "在断开骨骼父子关系时保持其形状和变换",
+
+        # New translations from bone_modify.py
+        "Failed to load mapping data": "映射数据加载失败",
+        "Please select the official and custom armatures first": "请先选择官方骨架和自定义骨架",
+        "Custom Bones": "自定义骨骼",
+        "No custom bones": "没有自定义骨骼",
+        "Select preferred bone:": "选择首选骨骼:",
+        "Add new bone mapping relationship": "添加新的骨骼映射关系",
+        "Apply changes in the current UI list to the preset file": "将当前UI列表的更改应用到预设文件",
+        "Set the selected bone as preferred": "将选中的骨骼设为首选项",
+        "Add a new custom bone": "添加新的自定义骨骼",
+        "Bone Name": "骨骼名称",
+        "Select from Armature": "从骨架中选择",
+        "Manual Input": "手动输入",
+        "Add Mode": "添加模式",
+        "Bone": "骨骼",
+        "Please select an armature": "请选择一个骨架",
+        "Bone name cannot be empty!": "骨骼名称不能为空!",
+        "Bone": "骨骼",
+        "already exists!": "已存在!",
+        "Remove the preferred custom bone": "删除首选的自定义骨骼",
+        "Remove the current mapping entry": "删除当前映射条目",
+        "Error when deleting UI list entry": "删除UI列表条目时发生错误",
+        "Failed to delete mapping data": "删除映射数据失败",
+        "No correct bones selected or not in pose mode": "没有选择正确的骨骼或者不在姿态模式",
+        "Official bone name (parent)": "官方骨骼名称(父)",
+        "Custom bone name (child)": "自定义骨骼名称(子)",
+        "Whether the bone is selected": "是否被选中",
+        "Official bone name": "官方骨骼名称",
+        "Common bone name": "通用骨骼名称",
+        "Custom bones list": "自定义骨骼列表",
+        "Index of the preferred bone in the list": "首选骨骼在列表中的索引",
+        "Source tab of the mapping": "映射的来源标签页",
+        "Use X axis constraint": "使用X轴约束",
+        "Use Y axis constraint": "使用Y轴约束",
+        "Use Z axis constraint": "使用Z轴约束",
 
         "Remove Bone Constraint": "移除骨骼约束",
         "Bulk Remove Constraints from Selected Bones": "批量移除所选骨骼的约束",
@@ -118,6 +180,138 @@ data = {
         "Dictionary Value": "字典值",
         "Display all values for the selected dictionary key": "显示所选字典键的所有值",
 
+        # 添加新的顶点组相关翻译
+        "Add from Vertex Groups": "从顶点组添加",
+        "Add an empty vertex group selector to the list": "添加一个空的顶点组选择器到列表",
+        "No mesh objects with vertex groups found": "未找到包含顶点组的网格物体",
+        "Target object has no vertex groups": "目标物体没有顶点组",
+        "The name of the vertex group": "顶点组的名称",
+        "Actual Vertex Group": "实际顶点组",
+        "The actual selected vertex group": "实际选中的顶点组",
+
+        # New translations from bone_modify.py function calls
+        "Failed to load preset data": "无法加载预设数据",
+        "Preset": "预设",
+        "already exists!": "已存在!",
+        "created successfully!": "创建成功!",
+        "Failed to create preset": "创建预设失败",
+        "does not exist!": "不存在!",
+        "has been deleted!": "已删除!",
+        "Failed to delete preset": "删除预设失败",
+        "Failed to load preset": "加载预设失败",
+        "Failed to update UI list": "更新UI列表失败",
+        "loaded successfully!": "加载成功!",
+        "loaded": "已加载",
+        "Selected file does not exist!": "选择的文件不存在!",
+        "Invalid preset file format!": "无效的预设文件格式!",
+        "imported successfully!": "导入成功!",
+        "Failed to import preset": "导入预设失败",
+        "exported successfully!": "导出成功!",
+        "Failed to export preset": "导出预设失败",
+        "Invalid bone index!": "无效的骨骼索引!",
+        "Mapping changes applied and saved to preset": "映射更改已应用并保存到预设",
+        "Mapping changes applied but failed to save to preset": "映射更改已应用，但保存到预设失败",
+        "Failed to serialize mapping data": "序列化映射数据失败",
+
+        # Additional translations for missed items
+        "Select preset and apply": "选择预设并应用",
+        "Preset": "预设",
+        "Select preset to use": "选择要使用的预设",
+        "None": "无", 
+        "Active Preset": "活动预设",
+        "Current active preset": "当前活动的预设",
+        
+        # Additional error messages
+        "Failed to save UI list to temp_data": "保存UI列表到temp_data失败",
+        "Failed to get temp_data": "获取temp_data失败",
+        "Failed to delete custom bone": "删除自定义骨骼失败",
+
+        # Additional missing translations
+        "All Mappings": "全部映射",
+        "Unique Mappings": "独立映射",
+        "Common Mappings": "通用映射",
+        "Axis Control": "轴控制",
+
+        
+        # weights.py UI Elements
+        "Weight Editing Tools": "权重编辑工具",
+        "Vertex Group Editing": "顶点组编辑", # Also used as BoolProperty name/desc
+        "Target Object:": "目标物体:",
+        "Add from Selected Bones": "从选中骨骼添加", # Also used as Operator label
+        "Reset": "重置",
+        "Merge Vertex Groups": "合并顶点组",
+        "Even Weight Transfer": "均分权重",
+        "Split Mode:": "分割模式:",
+        "X Axis": "X轴", # Also used in EnumProperty item
+        "Y Axis": "Y轴", # Also used in EnumProperty item
+        "Z Axis": "Z轴", # Also used in EnumProperty item
+        "Custom": "自定义", # Also used in EnumProperty item
+        "Please draw the split line first": "请先绘制分割线",
+        "Execute Bisect Weight": "执行二分权重",
+        "Please add vertex groups first": "请先添加顶点组",
+        "Select Target Object": "选择目标物体",
+        "Select the target object to process:": "选择要处理的目标物体:",
+        "Select Object Item": "选择物体项",
+        "Set Target Object": "设置目标物体",
+        "Clear Vertex Group List": "清空顶点组列表",
+        "Clear the current vertex group list and reset target object selection for switching to new armatures and objects": "清空当前的顶点组列表并重置目标物体选择，便于切换到新的骨架和物体",
+        "Vertex group list and target object selection cleared": "已清空顶点组列表和目标物体选择",
+        "Remove Vertex Group": "移除顶点组", # Also used as Operator label
+        "Remove this vertex group from the list": "从列表中移除此顶点组",
+        "Process Vertex Groups": "处理顶点组",
+        "Merge: Merge weights of subsequent groups into the first group.\nEven: Evenly distribute weights of the first group to subsequent groups.\nBisect: Distribute the first group's weight to the 2nd and 3rd groups based on the selected axis or custom line.": "合并: 合并后续组权重到首个组。\n均分: 均分首个组权重给后续组。\n二分: 根据选择的方向或自定义线分配首组权重给第2、3组。",
+        "Target object not set": "未设置目标物体",
+        "Target object is invalid or not a mesh object": "目标物体无效或不是网格物体",
+        "Please select at least two vertex groups": "请至少选择两个顶点组",
+        "Bisect weight requires at least three vertex groups selected": "二分权重需要至少选择三个顶点组",
+        "Vertex group merge completed": "顶点组合并完成",
+        "Weight distribution completed": "权重均匀分配完成",
+        "One or more specified vertex groups do not exist": "一个或多个指定的顶点组不存在",
+        "No vertices found affected by the middle vertex group": "没有找到中间顶点组影响的顶点",
+        "Bisect weight completed using": "使用", # Part of f-string
+        "axis": "轴完成二分权重", # Part of f-string
+        "Blend Factor:": "混合因子:", # Part of f-string, also FloatProperty name
+        "Bisect weight completed using custom split line": "使用自定义分割线完成二分权重", # Part of f-string
+        "Draw Split Line": "绘制分割线",
+        "Draw a split line in the 3D view for custom weight splitting direction": "在3D视图中绘制分割线，用于自定义权重分割方向",
+        "This tool must be used in the 3D View": "必须在3D视图中使用此工具",
+        "Click to set the start point, move, then click again to set the end point": "单击设置分割线起点，移动后再次单击设置终点",
+        "Cancelled drawing split line": "取消绘制分割线",
+        "Start point set, move mouse and click again to set end point": "起点已设置，移动鼠标并再次单击设置终点",
+        "Split line set": "分割线已设置",
+        "Set Split Mode": "设置分割模式",
+        "Set the splitting mode for bisect weight": "设置二分权重的分割模式",
+
+        # weights.py Operator Labels/Descriptions
+        "Automatically add corresponding vertex groups from bones selected in pose mode": "从姿势模式下选中的骨骼自动添加对应的顶点组",
+        "Please select bones in Pose Mode": "请在姿势模式下选择骨骼",
+        "No bones selected": "未选择任何骨骼",
+        "Could not find mesh objects associated with the armature": "未找到与骨架关联的网格物体",
+        "Added": "已添加", # Part of f-string
+        "vertex groups": "个顶点组", # Part of f-string
+        "bone names do not exist in vertex groups": "个骨骼名称在顶点组中不存在", # Part of f-string
+
+        # weights.py Property Names/Descriptions
+        "Vertex Group Name": "顶点组名称",
+        "Target Mesh Object": "目标网格物体",
+        "Target mesh object for adding vertex groups": "用于添加顶点组的目标网格物体",
+        
+        # "Vertex Group Editing": "顶点组编辑", # Defined above
+        "Smoothness of the transition area for bisect weight (0=Hard Split, 1=Max Smoothness)": "二分权重时过渡区域的平滑度 (0=硬分割, 1=最大平滑)",
+        "Split Line Start": "分割线起点",
+        "Start point of the custom split line": "自定义分割线的起点",
+        "Split Line End": "分割线终点",
+        "End point of the custom split line": "自定义分割线的终点",
+        "Use Custom Split Line": "使用自定义分割线",
+        "When enabled, bisect weight uses the custom split line instead of an axis": "启用后二分权重将使用自定义分割线而非轴向",
+        "Split Mode": "分割模式", # Also used as EnumProperty name
+        "Select the axis or method for weight splitting": "选择权重分割的轴向或方式",
+        "Split weights along the X axis": "沿X轴分割权重", # EnumProperty item description
+        "Split weights along the Y axis": "沿Y轴分割权重", # EnumProperty item description
+        "Split weights along the Z axis": "沿Z轴分割权重", # EnumProperty item description
+        "Use custom split line": "使用自定义分割线", # EnumProperty item description
+
+        # bone_modify.py UI Elements
         "Bone Quick Select": "骨骼快捷选择",
         "Select bones according to the bone set defined in the dictionary": "根据定义好的骨骼集合选择骨骼",
         "Valve Bone": "官方骨骼",
@@ -129,7 +323,7 @@ data = {
         "Select by pattern": "按名称选择",
         "By default, turn off case distinction and turn on merge selection": "默认关闭大小写区分和打开并入选择",
 
-
+        # VRD Tools
         "VRD Action Management:": "VRD动作管理",
         "Add New Project": "添加VRD动作项目",
         "Add new project to the project list": "添加新的项目到项目列表",
@@ -230,6 +424,7 @@ data = {
         "Delete Key": "删除键",
         "Delete the currently selected key and its key-value pair": "删除当前选中的键及其键值对",
         "Select All/Deselect All/Invert Selection": "全选/取消全选/反选",
+
         # Update related translations
         "Check for updates": "检查更新",
         "Update Available!": "有可用更新！",
@@ -242,105 +437,8 @@ data = {
         "New version available:": "新版本可用：",
         "Download": "下载",
 
-        # GraftingOperator translations
-        "Failed to load mapping data": "映射数据加载失败",
-        "Armature object not selected or selected object is not an armature type": "未选中骨架对象或选中的不是骨架类型",
-        "No available bone mapping relationships, grafting may be incomplete": "没有可用的骨骼映射关系，嫁接可能不完整",
-        "Failed to serialize mapping data": "序列化映射数据失败",
-        
-        # RenameBonesOperator translations
-        "Target Name": "目标名称",
-        "The new name to rename the bone to": "将骨骼重命名为的新名称",
-        "Current Name": "当前名称",
-        "The current bone name to be renamed": "将被重命名的当前骨骼名称",
-        "Source": "来源",
-        "Source of the mapping relationship": "映射关系的来源",
-        "Confirm Bone Renaming": "确认骨骼重命名",
-        "Renaming Mapping Relationships": "重命名映射关系",
-        "Operation Process:": "操作流程：",
-        "Load mapping relationships": "加载映射关系",
-        "Match custom bones to official bones": "匹配自定义骨骼到官方骨骼",
-        "Rename custom bones to official names": "将自定义骨骼重命名为官方名称",
-        "No bone mapping relationships found that match the current armature": "未找到与当前骨架匹配的骨骼映射关系",
-        "Failed to parse mapping data": "解析映射数据失败",
-        "Renamed": "已重命名",
-        "bones successfully": "个骨骼成功",
-        "No bones were renamed, please check the mapping relationships": "没有骨骼被重命名，请检查映射关系",
-        
-        # weights.py UI Elements
-        "Weight Editing Tools": "权重编辑工具",
-        "Vertex Group Editing": "顶点组编辑", # Also used as BoolProperty name/desc
-        "Target Object:": "目标物体:",
-        "Add from Selected Bones": "从选中骨骼添加", # Also used as Operator label
-        "Reset": "重置",
-        "Merge Vertex Groups": "合并顶点组",
-        "Even Weight Transfer": "均分权重",
-        "Split Mode:": "分割模式:",
-        "X Axis": "X轴", # Also used in EnumProperty item
-        "Y Axis": "Y轴", # Also used in EnumProperty item
-        "Z Axis": "Z轴", # Also used in EnumProperty item
-        "Custom": "自定义", # Also used in EnumProperty item
-        "Please draw the split line first": "请先绘制分割线",
-        "Execute Bisect Weight": "执行二分权重",
-        "Please add vertex groups first": "请先添加顶点组",
-        "Select Target Object": "选择目标物体",
-        "Select the target object to process:": "选择要处理的目标物体:",
-        "Select Object Item": "选择物体项",
-        "Set Target Object": "设置目标物体",
-        "Clear Vertex Group List": "清空顶点组列表",
-        "Clear the current vertex group list and reset target object selection for switching to new armatures and objects": "清空当前的顶点组列表并重置目标物体选择，便于切换到新的骨架和物体",
-        "Vertex group list and target object selection cleared": "已清空顶点组列表和目标物体选择",
-        "Remove Vertex Group": "移除顶点组", # Also used as Operator label
-        "Remove this vertex group from the list": "从列表中移除此顶点组",
-        "Process Vertex Groups": "处理顶点组",
-        "Merge: Merge weights of subsequent groups into the first group.\nEven: Evenly distribute weights of the first group to subsequent groups.\nBisect: Distribute the first group's weight to the 2nd and 3rd groups based on the selected axis or custom line.": "合并: 合并后续组权重到首个组。\n均分: 均分首个组权重给后续组。\n二分: 根据选择的方向或自定义线分配首组权重给第2、3组。",
-        "Target object not set": "未设置目标物体",
-        "Target object is invalid or not a mesh object": "目标物体无效或不是网格物体",
-        "Please select at least two vertex groups": "请至少选择两个顶点组",
-        "Bisect weight requires at least three vertex groups selected": "二分权重需要至少选择三个顶点组",
-        "Vertex group merge completed": "顶点组合并完成",
-        "Weight distribution completed": "权重均匀分配完成",
-        "One or more specified vertex groups do not exist": "一个或多个指定的顶点组不存在",
-        "No vertices found affected by the middle vertex group": "没有找到中间顶点组影响的顶点",
-        "Bisect weight completed using": "使用", # Part of f-string
-        "axis": "轴完成二分权重", # Part of f-string
-        "Blend Factor:": "混合因子:", # Part of f-string, also FloatProperty name
-        "Bisect weight completed using custom split line": "使用自定义分割线完成二分权重", # Part of f-string
-        "Draw Split Line": "绘制分割线",
-        "Draw a split line in the 3D view for custom weight splitting direction": "在3D视图中绘制分割线，用于自定义权重分割方向",
-        "This tool must be used in the 3D View": "必须在3D视图中使用此工具",
-        "Click to set the start point, move, then click again to set the end point": "单击设置分割线起点，移动后再次单击设置终点",
-        "Cancelled drawing split line": "取消绘制分割线",
-        "Start point set, move mouse and click again to set end point": "起点已设置，移动鼠标并再次单击设置终点",
-        "Split line set": "分割线已设置",
-        "Set Split Mode": "设置分割模式",
-        "Set the splitting mode for bisect weight": "设置二分权重的分割模式",
 
-        # weights.py Operator Labels/Descriptions
-        "Automatically add corresponding vertex groups from bones selected in pose mode": "从姿势模式下选中的骨骼自动添加对应的顶点组",
-        "Please select bones in Pose Mode": "请在姿势模式下选择骨骼",
-        "No bones selected": "未选择任何骨骼",
-        "Could not find mesh objects associated with the armature": "未找到与骨架关联的网格物体",
-        "Added": "已添加", # Part of f-string
-        "vertex groups": "个顶点组", # Part of f-string
-        "bone names do not exist in vertex groups": "个骨骼名称在顶点组中不存在", # Part of f-string
 
-        # weights.py Property Names/Descriptions
-        "Vertex Group Name": "顶点组名称",
-        "Target Mesh Object": "目标网格物体",
-        "Target mesh object for adding vertex groups": "用于添加顶点组的目标网格物体",
-        # "Vertex Group Editing": "顶点组编辑", # Defined above
-        "Smoothness of the transition area for bisect weight (0=Hard Split, 1=Max Smoothness)": "二分权重时过渡区域的平滑度 (0=硬分割, 1=最大平滑)",
-        "Split Line Start": "分割线起点",
-        "Start point of the custom split line": "自定义分割线的起点",
-        "Split Line End": "分割线终点",
-        "End point of the custom split line": "自定义分割线的终点",
-        "Use Custom Split Line": "使用自定义分割线",
-        "When enabled, bisect weight uses the custom split line instead of an axis": "启用后二分权重将使用自定义分割线而非轴向",
-        "Split Mode": "分割模式", # Also used as EnumProperty name
-        "Select the axis or method for weight splitting": "选择权重分割的轴向或方式",
-        "Split weights along the X axis": "沿X轴分割权重", # EnumProperty item description
-        "Split weights along the Y axis": "沿Y轴分割权重", # EnumProperty item description
-        "Split weights along the Z axis": "沿Z轴分割权重", # EnumProperty item description
-        "Use custom split line": "使用自定义分割线", # EnumProperty item description
+        
+
 }

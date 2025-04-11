@@ -7,12 +7,24 @@ from bpy_extras import view3d_utils
 from bpy.app.translations import pgettext_iface as _
 
 class VertexGroupItem(PropertyGroup):
-    name: StringProperty(name=_("Vertex Group Name"))
+    name: StringProperty(name=_("Vertex Group Name"), description=_("The name of the vertex group"))
+    actual_group: StringProperty(name=_("Actual Vertex Group"), description=_("The actual selected vertex group"))
 
 class L4D2_UL_VertexGroups(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.label(text=item.name)
+            obj = None
+            if context.scene.target_mesh_object:
+                obj = bpy.data.objects.get(context.scene.target_mesh_object)
+            
+            # 如果目标物体存在，则使用 prop_search
+            if obj:
+                # 要显示的顶点组名称列表来源于目标物体的顶点组集合
+                layout.prop_search(item, "actual_group", obj, "vertex_groups", text="")
+            else:
+                # 如果目标物体不存在，则只显示名称
+                layout.label(text=item.name)
+                
             remove_op = layout.operator("scene.remove_vertex_group", text="", icon="X")
             remove_op.index = data.vertex_group_names.values().index(item)
 
@@ -39,10 +51,14 @@ class L4D2_PT_WeightsPanel(Panel):
                     row = layout.row()
                     row.label(text=f"{_('Target Object:')} {obj.name}")
             
-            # 添加从骨骼添加按钮
+            # 添加按钮行，包含从骨骼添加和从顶点组添加按钮
             row = layout.row(align=True)
             row.operator("scene.add_from_selected_bones", text=_("Add from Selected Bones"), icon="BONE_DATA")
-            row.operator("scene.clear_vertex_groups", text=_("Reset"), icon="FILE_REFRESH")
+            row.operator("scene.add_empty_vertex_group", text=_("Add from Vertex Groups"), icon="GROUP_VERTEX")
+            
+            # 添加重置按钮
+            reset_row = layout.row()
+            reset_row.operator("scene.clear_vertex_groups", text=_("Reset"), icon="FILE_REFRESH")
             
             # 显示已添加的顶点组列表
             layout.template_list("L4D2_UL_VertexGroups", "", scene, "vertex_group_names", scene, "active_vertex_group_index", rows=3)
@@ -161,9 +177,10 @@ class L4D2_OT_AddFromSelectedBones(Operator):
         for bone_name in bone_names:
             if bone_name in mesh_obj.vertex_groups:
                 # 检查是否已经在列表中
-                if not any(group.name == bone_name for group in context.scene.vertex_group_names):
+                if not any(group.name == bone_name or group.actual_group == bone_name for group in context.scene.vertex_group_names):
                     group_item = context.scene.vertex_group_names.add()
                     group_item.name = bone_name
+                    group_item.actual_group = bone_name
                     added += 1
             else:
                 not_found += 1
@@ -240,13 +257,21 @@ class L4D2_OT_SelectMeshObject(Operator):
             # 设置目标物体
             context.scene.target_mesh_object = self.selected_object
             
-            # 添加顶点组
+            # 检查是否从骨骼添加
             armature = context.active_object
             if armature and armature.type == 'ARMATURE' and armature.mode == 'POSE':
                 selected_bones = [bone.name for bone in armature.pose.bones if bone.bone.select]
                 mesh_obj = bpy.data.objects.get(self.selected_object)
                 if mesh_obj and selected_bones:
                     self.add_vertex_groups_from_bones(context, mesh_obj, selected_bones)
+            # 如果不是从骨骼添加，可能是从顶点组添加，添加一个空项
+            else:
+                mesh_obj = bpy.data.objects.get(self.selected_object)
+                if mesh_obj and mesh_obj.type == 'MESH' and mesh_obj.vertex_groups:
+                    # 添加一个空的顶点组条目
+                    group_item = context.scene.vertex_group_names.add()
+                    group_item.name = ""  # 初始名称为空
+                    group_item.actual_group = ""  # 初始顶点组为空
         
         # 强制刷新所有区域的UI
         for area in context.screen.areas:
@@ -261,9 +286,10 @@ class L4D2_OT_SelectMeshObject(Operator):
         for bone_name in bone_names:
             if bone_name in mesh_obj.vertex_groups:
                 # 检查是否已经在列表中
-                if not any(group.name == bone_name for group in context.scene.vertex_group_names):
+                if not any(group.name == bone_name or group.actual_group == bone_name for group in context.scene.vertex_group_names):
                     group_item = context.scene.vertex_group_names.add()
                     group_item.name = bone_name
+                    group_item.actual_group = bone_name
                     added += 1
             else:
                 not_found += 1
@@ -346,7 +372,12 @@ class L4D2_OT_ProcessVertexGroups(Operator):
             self.report({'WARNING'}, _("Target object is invalid or not a mesh object"))
             return {'CANCELLED'}
         
-        group_names = [group.name for group in scene.vertex_group_names if group.name]
+        # 从列表项获取顶点组名称，优先使用 actual_group 字段，如果为空则使用 name 字段
+        group_names = []
+        for group in scene.vertex_group_names:
+            group_name = group.actual_group if group.actual_group else group.name
+            if group_name and group_name in obj.vertex_groups:
+                group_names.append(group_name)
         
         if len(group_names) < 2:
             self.report({'WARNING'}, _("Please select at least two vertex groups"))
@@ -788,6 +819,54 @@ class L4D2_OT_SetSplitMode(Operator):
             
         return {'FINISHED'}
 
+class L4D2_OT_AddEmptyVertexGroup(Operator):
+    bl_idname = "scene.add_empty_vertex_group"
+    bl_label = _("Add from Vertex Groups")
+    bl_description = _("Add an empty vertex group selector to the list")
+    
+    def execute(self, context):
+        # 检查是否有目标物体
+        if not context.scene.target_mesh_object:
+            # 如果没有目标物体，调用物体选择对话框
+            # 这里复用 SelectMeshObject 操作符的邏輯
+            if hasattr(bpy.types.Scene, "related_objects"):
+                context.scene.related_objects.clear()
+            
+            # 寻找合适的网格物体
+            mesh_objects = [obj for obj in bpy.context.view_layer.objects 
+                          if obj.type == 'MESH' and obj.vertex_groups]
+            
+            if not mesh_objects:
+                self.report({'WARNING'}, _("No mesh objects with vertex groups found"))
+                return {'CANCELLED'}
+            
+            # 将找到的物体添加到相关物体列表
+            for obj in mesh_objects:
+                item = context.scene.related_objects.add()
+                item.name = obj.name
+            
+            # 调用选择物体操作符
+            bpy.ops.wm.select_mesh_object('INVOKE_DEFAULT')
+            return {'FINISHED'}
+        
+        # 如果有目标物体
+        obj = bpy.data.objects.get(context.scene.target_mesh_object)
+        if not obj or obj.type != 'MESH':
+            self.report({'WARNING'}, _("Target object is invalid or not a mesh object"))
+            return {'CANCELLED'}
+        
+        # 检查是否有顶点组
+        if len(obj.vertex_groups) == 0:
+            self.report({'WARNING'}, _("Target object has no vertex groups"))
+            return {'CANCELLED'}
+        
+        # 添加一个空的顶点组条目到列表
+        group_item = context.scene.vertex_group_names.add()
+        group_item.name = ""  # 初始名称为空
+        group_item.actual_group = ""  # 初始顶点组为空
+        
+        return {'FINISHED'}
+
 # 注册类列表
 classes = [
     VertexGroupItem,
@@ -802,7 +881,8 @@ classes = [
     L4D2_OT_RemoveVertexGroup,
     L4D2_OT_ProcessVertexGroups,
     L4D2_OT_DrawSplitLine,
-    L4D2_OT_SetSplitMode
+    L4D2_OT_SetSplitMode,
+    L4D2_OT_AddEmptyVertexGroup  # 添加新的操作器类
 ]
 
 def register():

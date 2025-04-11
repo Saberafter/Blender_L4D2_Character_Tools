@@ -707,7 +707,7 @@ class L4D2_OT_BaseOperator:
         if not current_bone_mapping or not current_common_mapping:
             success, error_msg = MappingDataManager.load_preset_data(context, context.scene.active_preset_name)
             if not success:
-                self.report({'ERROR'}, f"无法加载预设数据: {error_msg}")
+                self.report({'ERROR'}, f"{_('Failed to load preset data')}: {error_msg}")
                 return False
                 
         print(f"使用预设: {context.scene.active_preset_name}")
@@ -1017,13 +1017,13 @@ class L4D2_OT_RiggingConfirmOperator(bpy.types.Operator, L4D2_OT_BaseOperator):
 
 class GraftingConfirmItem(bpy.types.PropertyGroup):
     official_bone: bpy.props.StringProperty(
-        name="父骨骼",
-        description="官方骨骼名称(父)",
+        name="Parent Bone",
+        description="Official bone name (parent)",
         default=""
     )
     custom_bone: bpy.props.StringProperty(
-        name="子骨骼",
-        description="自定义骨骼名称(子)",
+        name="Child Bone",
+        description="Custom bone name (child)",
         default=""
     )
     # 嫁接操作不需要轴控制属性
@@ -1680,7 +1680,7 @@ class L4D2_OT_CreatePreset(bpy.types.Operator):
             
         preset_path = os.path.join(MAPPING_PRESETS_DIR, f"{self.preset_name}.json")
         if os.path.exists(preset_path):
-            self.report({'ERROR'}, f"预设 {self.preset_name} 已存在!")
+            self.report({'ERROR'}, f"{_('Preset')} {self.preset_name} {_('already exists!')}")
             return {'CANCELLED'}
             
         preset_data = {
@@ -1693,10 +1693,10 @@ class L4D2_OT_CreatePreset(bpy.types.Operator):
             with open(preset_path, 'w', encoding='utf-8') as f:
                 json.dump(preset_data, f, indent=4, ensure_ascii=False)
             print(f"成功创建预设文件: {preset_path}")
-            self.report({'INFO'}, f"预设 {self.preset_name} 创建成功!")
+            self.report({'INFO'}, f"{_('Preset')} {self.preset_name} {_('created successfully!')}")
         except Exception as e:
             print(f"创建预设时发生错误: {str(e)}")
-            self.report({'ERROR'}, f"创建预设失败: {str(e)}")
+            self.report({'ERROR'}, f"{_('Failed to create preset')}: {str(e)}")
             return {'CANCELLED'}
             
         return {'FINISHED'}
@@ -1720,16 +1720,16 @@ class L4D2_OT_DeletePreset(bpy.types.Operator):
         preset_path = os.path.join(MAPPING_PRESETS_DIR, f"{self.preset_name}.json")
         
         if not os.path.exists(preset_path):
-            self.report({'ERROR'}, f"预设 {self.preset_name} 不存在!")
+            self.report({'ERROR'}, f"{_('Preset')} {self.preset_name} {_('does not exist!')}")
             return {'CANCELLED'}
             
         try:
             os.remove(preset_path)
             print(f"成功删除预设文件: {preset_path}")
-            self.report({'INFO'}, f"预设 {self.preset_name} 已删除!")
+            self.report({'INFO'}, f"{_('Preset')} {self.preset_name} {_('has been deleted!')}")
         except Exception as e:
             print(f"删除预设时发生错误: {str(e)}")
-            self.report({'ERROR'}, f"删除预设失败: {str(e)}")
+            self.report({'ERROR'}, f"{_('Failed to delete preset')}: {str(e)}")
             return {'CANCELLED'}
             
         return {'FINISHED'}
@@ -1754,16 +1754,16 @@ class L4D2_OT_LoadPreset(bpy.types.Operator):
         # 加载预设数据
         success, error_msg = MappingDataManager.load_preset_data(context, self.preset_name)
         if not success:
-            self.report({'ERROR'}, f"加载预设失败: {error_msg}")
+            self.report({'ERROR'}, f"{_('Failed to load preset')}: {error_msg}")
             return {'CANCELLED'}
             
         # 更新UI列表
         if not MappingDataManager.update_ui_list(context):
-            self.report({'ERROR'}, "更新UI列表失败")
+            self.report({'ERROR'}, _("Failed to update UI list"))
             return {'CANCELLED'}
             
             
-        self.report({'INFO'}, f"预设 {self.preset_name} 加载成功!")
+        self.report({'INFO'}, f"{_('Preset')} {self.preset_name} {_('loaded successfully!')}")
         return {'FINISHED'}
 
 # 导入预设操作符
@@ -1777,7 +1777,7 @@ class L4D2_OT_ImportPreset(bpy.types.Operator):
     def execute(self, context):
         print(f"准备导入预设文件: {self.filepath}")
         if not os.path.exists(self.filepath):
-            self.report({'ERROR'}, "选择的文件不存在!")
+            self.report({'ERROR'}, _("Selected file does not exist!"))
             return {'CANCELLED'}
             
         try:
@@ -1785,7 +1785,7 @@ class L4D2_OT_ImportPreset(bpy.types.Operator):
                 preset_data = json.load(f)
                 
             if not all(key in preset_data for key in ['name', 'official_mapping', 'unique_mapping']):
-                self.report({'ERROR'}, "无效的预设文件格式!")
+                self.report({'ERROR'}, _("Invalid preset file format!"))
                 return {'CANCELLED'}
                 
             preset_name = preset_data['name']
@@ -1798,10 +1798,10 @@ class L4D2_OT_ImportPreset(bpy.types.Operator):
                 json.dump(preset_data, f, indent=4, ensure_ascii=False)
                 
             print(f"成功导入预设到: {target_path}")
-            self.report({'INFO'}, f"预设 {preset_name} 导入成功!")
+            self.report({'INFO'}, f"{_('Preset')} {preset_name} {_('imported successfully!')}")
         except Exception as e:
             print(f"导入预设时发生错误: {str(e)}")
-            self.report({'ERROR'}, f"导入预设失败: {str(e)}")
+            self.report({'ERROR'}, f"{_('Failed to import preset')}: {str(e)}")
             return {'CANCELLED'}
             
         return {'FINISHED'}
@@ -1827,7 +1827,7 @@ class L4D2_OT_ExportPreset(bpy.types.Operator):
         source_path = os.path.join(MAPPING_PRESETS_DIR, f"{self.preset_name}.json")
         
         if not os.path.exists(source_path):
-            self.report({'ERROR'}, f"预设 {self.preset_name} 不存在!")
+            self.report({'ERROR'}, f"{_('Preset')} {self.preset_name} {_('does not exist!')}")
             return {'CANCELLED'}
             
         try:
@@ -1838,10 +1838,10 @@ class L4D2_OT_ExportPreset(bpy.types.Operator):
                 json.dump(preset_data, f, indent=4, ensure_ascii=False)
                 
             print(f"成功导出预设到: {self.filepath}")
-            self.report({'INFO'}, f"预设 {self.preset_name} 导出成功!")
+            self.report({'INFO'}, f"{_('Preset')} {self.preset_name} {_('exported successfully!')}")
         except Exception as e:
             print(f"导出预设时发生错误: {str(e)}")
-            self.report({'ERROR'}, f"导出预设失败: {str(e)}")
+            self.report({'ERROR'}, f"{_('Failed to export preset')}: {str(e)}")
             return {'CANCELLED'}
             
         return {'FINISHED'}
@@ -1856,12 +1856,12 @@ class CustomBoneItem(bpy.types.PropertyGroup):
     """用于存储自定义骨骼信息的属性组"""
     name: bpy.props.StringProperty(
         name="Bone Name",
-        description="骨骼名称",
+        description="Bone name",
         default=""
     )
     is_selected: bpy.props.BoolProperty(
         name="Is Selected",
-        description="是否被选中",
+        description="Whether the bone is selected",
         default=False
     )
 
@@ -1870,49 +1870,49 @@ class MappingListItem(bpy.types.PropertyGroup):
     """用于存储映射信息的属性组"""
     official_bone: bpy.props.StringProperty(
         name="Official Bone",
-        description="官方骨骼名称",
+        description="Official bone name",
         default=""
     )
     common_bone: bpy.props.StringProperty(
         name="Common Bone",
-        description="通用骨骼名称",
+        description="Common bone name",
         default=""
     )
     custom_bones: bpy.props.CollectionProperty(
         type=CustomBoneItem,
         name="Custom Bones",
-        description="自定义骨骼列表"
+        description="Custom bones list"
     )
     preferred_bone_index: bpy.props.IntProperty(
         name="Preferred Bone Index",
-        description="首选骨骼在列表中的索引",
+        description="Index of the preferred bone in the list",
         default=0
     )
     source_tab: bpy.props.StringProperty(
         name="Source Tab",
-        description="映射的来源标签页",
+        description="Source tab of the mapping",
         default=""
     )
     use_x: bpy.props.BoolProperty(
         name="X",
-        description="使用X轴约束",
+        description="Use X axis constraint",
         default=True
     )
     use_y: bpy.props.BoolProperty(
         name="Y",
-        description="使用Y轴约束",
+        description="Use Y axis constraint",
         default=True
     )
     use_z: bpy.props.BoolProperty(
         name="Z",
-        description="使用Z轴约束",
+        description="Use Z axis constraint",
         default=True
     )
 
 # 自定义骨骼下拉菜单
 class MAPPING_MT_CustomBonesMenu(bpy.types.Menu):
     bl_idname = "MAPPING_MT_custom_bones_menu"
-    bl_label = "自定义骨骼"
+    bl_label = "Custom Bones"
     
     def draw(self, context):
         layout = self.layout
@@ -1920,12 +1920,12 @@ class MAPPING_MT_CustomBonesMenu(bpy.types.Menu):
         
         # 如果没有骨骼，显示提示信息
         if len(item.custom_bones) == 0:
-            layout.label(text="没有自定义骨骼", icon='INFO')
+            layout.label(text="No custom bones", icon='INFO')
             layout.separator()
             return
             
         # 显示骨骼列表
-        layout.label(text="选择首选骨骼:", icon='BONE_DATA')
+        layout.label(text="Select preferred bone:", icon='BONE_DATA')
         layout.separator()
         
         # 显示所有自定义骨骼
@@ -2093,7 +2093,7 @@ class BONE_UL_MappingList(bpy.types.UIList):
                 # 显示下拉菜单
                 custom_group.context_pointer_set("active_item", item)
                 # 修改这里以显示首选骨骼
-                display_name = item.custom_bones[item.preferred_bone_index].name if len(item.custom_bones) > 0 else "无"
+                display_name = item.custom_bones[item.preferred_bone_index].name if len(item.custom_bones) > 0 else "None"
                 custom_group.menu(
                     "MAPPING_MT_custom_bones_menu",
                     text=display_name
@@ -2144,7 +2144,7 @@ class BONE_UL_MappingList(bpy.types.UIList):
                 # 显示下拉菜单
                 custom_group.context_pointer_set("active_item", item)
                 # 修改这里以显示首选骨骼
-                display_name = item.custom_bones[item.preferred_bone_index].name if len(item.custom_bones) > 0 else "无"
+                display_name = item.custom_bones[item.preferred_bone_index].name if len(item.custom_bones) > 0 else "None"
                 custom_group.menu(
                     "MAPPING_MT_custom_bones_menu",
                     text=display_name
@@ -2222,11 +2222,11 @@ def get_preset_enum_items(self, context):
 class L4D2_OT_SelectPreset(bpy.types.Operator):
     bl_idname = "l4d2.select_preset"
     bl_label = "Select Preset"
-    bl_description = "选择预设并应用"
+    bl_description = "Select preset and apply"
     
     preset_name: bpy.props.EnumProperty(
-        name="预设",
-        description="选择要使用的预设",
+        name="Preset",
+        description="Select preset to use",
         items=get_preset_enum_items
     )
     
@@ -2235,22 +2235,22 @@ class L4D2_OT_SelectPreset(bpy.types.Operator):
         context.scene.active_preset_name = self.preset_name
         success, error_msg = MappingDataManager.load_preset_data(context, self.preset_name)
         if not success:
-            self.report({'ERROR'}, f"加载预设失败: {error_msg}")
+            self.report({'ERROR'}, f"{_('Failed to load preset')}: {error_msg}")
             return {'CANCELLED'}
             
         # 更新UI列表
         if not MappingDataManager.update_ui_list(context):
-            self.report({'ERROR'}, "更新UI列表失败")
+            self.report({'ERROR'}, _("Failed to update UI list"))
             return {'CANCELLED'}
             
-        self.report({'INFO'}, f"预设 {self.preset_name} 已加载")
+        self.report({'INFO'}, f"{_('Preset')} {self.preset_name} {_('loaded')}")
         return {'FINISHED'}
 
 # 操作符
 class MAPPING_OT_AddNewMapping(bpy.types.Operator):
     bl_idname = "mapping.add_new_mapping"
     bl_label = "Add New Mapping"
-    bl_description = "添加新的骨骼映射关系"
+    bl_description = "Add new bone mapping relationship"
     
     def execute(self, context):
         print("开始添加新映射...")
@@ -2294,7 +2294,7 @@ class MAPPING_OT_AddNewMapping(bpy.types.Operator):
 class MAPPING_OT_ApplyChanges(bpy.types.Operator):
     bl_idname = "mapping.apply_changes"
     bl_label = "Apply Changes"
-    bl_description = "将当前UI列表的更改应用到预设文件"
+    bl_description = "Apply changes in the current UI list to the preset file"
     
     def execute(self, context):
         global current_bone_mapping, current_unique_mapping, current_common_mapping
@@ -2314,13 +2314,13 @@ class MAPPING_OT_ApplyChanges(bpy.types.Operator):
         # 1. 保存当前UI列表内容到temp_data (确保所有标签页的修改都合并)
         print("保存当前UI列表修改到temp_data...")
         if not MappingDataManager.save_ui_list(context):
-            self.report({'ERROR'}, "保存UI列表到temp_data失败")
+            self.report({'ERROR'}, _("Failed to save UI list to temp_data"))
             return {'CANCELLED'}
 
         # 2. 获取temp_data中的映射数据 (这是包含了所有UI修改的工作副本)
         temp_data = MappingDataManager.get_temp_data(context)
         if not temp_data:
-            self.report({'ERROR'}, "获取temp_data失败")
+            self.report({'ERROR'}, _("Failed to get temp_data"))
             return {'CANCELLED'}
 
         # 4. 将 temp_data 和 UI中的轴控制 更新到 maindata (中间状态)
@@ -2346,9 +2346,9 @@ class MAPPING_OT_ApplyChanges(bpy.types.Operator):
         # 7. 保存当前 maindata 到活动预设文件
         active_preset = scene.active_preset_name
         if MappingDataManager.save_mapping_preset(context, active_preset): # save_mapping_preset 现在会从 maindata 保存
-            self.report({'INFO'}, f"映射更改已应用并保存到预设 {active_preset}")
+            self.report({'INFO'}, f"{_('Mapping changes applied and saved to preset')} {active_preset}")
         else:
-            self.report({'WARNING'}, "映射更改已应用，但保存到预设失败")
+            self.report({'WARNING'}, _("Mapping changes applied but failed to save to preset"))
 
         return {'FINISHED'}
 
@@ -2364,7 +2364,7 @@ class MAPPING_OT_ToggleSearchMode(bpy.types.Operator):
 class MAPPING_OT_SelectCustomBone(bpy.types.Operator):
     bl_idname = "mapping.select_custom_bone"
     bl_label = "Select Custom Bone"
-    bl_description = "将选中的骨骼设为首选项"
+    bl_description = "Set the selected bone as preferred"
     
     list_index: bpy.props.IntProperty()
     bone_index: bpy.props.IntProperty()
@@ -2373,7 +2373,7 @@ class MAPPING_OT_SelectCustomBone(bpy.types.Operator):
         item = context.scene.mapping_list[self.list_index]
         
         if self.bone_index >= len(item.custom_bones):
-            self.report({'ERROR'}, "无效的骨骼索引!")
+            self.report({'ERROR'}, _("Invalid bone index!"))
             return {'CANCELLED'}
             
         # 更新首选骨骼索引而不是移动骨骼
@@ -2385,16 +2385,16 @@ class MAPPING_OT_SelectCustomBone(bpy.types.Operator):
 class MAPPING_OT_AddCustomBone(bpy.types.Operator):
     bl_idname = "mapping.add_custom_bone"
     bl_label = "Add Custom Bone"
-    bl_description = "添加新的自定义骨骼"
+    bl_description = "Add a new custom bone"
     
     list_index: bpy.props.IntProperty()
-    bone_name: bpy.props.StringProperty(name="骨骼名称")
+    bone_name: bpy.props.StringProperty(name="Bone Name")
     mode: bpy.props.EnumProperty(
         items=[
-            ('SEARCH', "从骨架中选择", "从当前骨架中选择骨骼"),
-            ('MANUAL', "手动输入", "手动输入骨骼名称")
+            ('SEARCH', "Select from Armature", "Select a bone from the current armature"),
+            ('MANUAL', "Manual Input", "Manually input bone name")
         ],
-        name="添加模式",
+        name="Add Mode",
         default='SEARCH'
     )
     
@@ -2409,18 +2409,18 @@ class MAPPING_OT_AddCustomBone(bpy.types.Operator):
         if self.mode == 'SEARCH':
             # 搜索模式：从当前骨架中选择
             if context.active_object and context.active_object.type == 'ARMATURE':
-                layout.prop_search(self, "bone_name", context.active_object.data, "bones", text="骨骼")
+                layout.prop_search(self, "bone_name", context.active_object.data, "bones", text="Bone")
             else:
-                layout.label(text="请选择一个骨架", icon='ERROR')
+                layout.label(text="Please select an armature", icon='ERROR')
         else:
             # 手动输入模式
-            layout.prop(self, "bone_name", text="骨骼")
+            layout.prop(self, "bone_name", text="Bone")
     
     def execute(self, context):
         bone_name = self.bone_name.strip()
         
         if not bone_name:
-            self.report({'ERROR'}, "骨骼名称不能为空!")
+            self.report({'ERROR'}, _("Bone name cannot be empty!"))
             return {'CANCELLED'}
         
         # 简化骨骼名称
@@ -2432,7 +2432,7 @@ class MAPPING_OT_AddCustomBone(bpy.types.Operator):
         # 检查是否已存在
         for bone in item.custom_bones:
             if bone.name == simplified_name:
-                self.report({'ERROR'}, f"骨骼 {simplified_name} 已存在!")
+                self.report({'ERROR'}, f"{_('Bone')} {simplified_name} {_('already exists!')}")
                 return {'CANCELLED'}
         
         # 添加新骨骼到列表末尾
@@ -2452,7 +2452,7 @@ class MAPPING_OT_AddCustomBone(bpy.types.Operator):
 class MAPPING_OT_RemoveCustomBone(bpy.types.Operator):
     bl_idname = "mapping.remove_custom_bone"
     bl_label = "Remove Custom Bone"
-    bl_description = "删除首选的自定义骨骼"
+    bl_description = "Remove the preferred custom bone"
     
     list_index: bpy.props.IntProperty()
     
@@ -2476,7 +2476,7 @@ class MAPPING_OT_RemoveCustomBone(bpy.types.Operator):
             
             # 从temp_data中删除骨骼
             if not MappingDataManager.remove_custom_bone(context, self.list_index, bone_to_remove):
-                self.report({'ERROR'}, "删除自定义骨骼失败")
+                self.report({'ERROR'}, _("Failed to delete custom bone"))
                 return {'CANCELLED'}
         
         return {'FINISHED'}
@@ -2487,7 +2487,7 @@ class MAPPING_OT_RemoveCustomBone(bpy.types.Operator):
 class MAPPING_OT_RemoveMapping(bpy.types.Operator):
     bl_idname = "mapping.remove_mapping"
     bl_label = "Remove Mapping"
-    bl_description = "删除当前映射条目"
+    bl_description = "Remove the current mapping entry"
     
     list_index: bpy.props.IntProperty()
     
@@ -2502,10 +2502,10 @@ class MAPPING_OT_RemoveMapping(bpy.types.Operator):
                     context.scene.mapping_list_index = max(0, len(context.scene.mapping_list) - 1)
                 return {'FINISHED'}
             except Exception as e:
-                self.report({'ERROR'}, f"删除UI列表条目时发生错误: {str(e)}")
+                self.report({'ERROR'}, f"{_('Error when deleting UI list entry')}: {str(e)}")
                 return {'CANCELLED'}
         else:
-            self.report({'ERROR'}, "删除映射数据失败")
+            self.report({'ERROR'}, _("Failed to delete mapping data"))
             return {'CANCELLED'}
     
     def invoke(self, context, event):
@@ -2550,7 +2550,7 @@ class L4D2_OT_UnbindAndKeepShape(bpy.types.Operator):
         selected_pose_bones = context.selected_pose_bones
         
         if not armature or not selected_pose_bones or armature.type != 'ARMATURE' or context.mode != 'POSE':
-            self.report({'ERROR'}, "没有选择正确的骨骼或者不在姿态模式")
+            self.report({'ERROR'}, _("No correct bones selected or not in pose mode"))
             return {'CANCELLED'}
 
         world_matrices = self.store_bone_world_matrices(armature, selected_pose_bones)
@@ -2571,13 +2571,13 @@ class L4D2_OT_RiggingOperator(bpy.types.Operator, L4D2_OT_BaseOperator):
         
         # 如果映射计数为0，可能表示数据加载失败
         if self.mapping_count == 0:
-            self.report({'ERROR'}, "映射数据加载失败")
+            self.report({'ERROR'}, _("Failed to load mapping data"))
             return {'CANCELLED'}
             
         # 验证骨架（仅检查存在性，不修改模式）
         armature_A, armature_B = validate_armatures(context)
         if not armature_A or not armature_B:
-            self.report({'ERROR'}, "请先选择官方骨架和自定义骨架")
+            self.report({'ERROR'}, _("Please select the official and custom armatures first"))
             return {'CANCELLED'}
             
         # 构建映射关系（只计算一次）
@@ -2642,7 +2642,7 @@ class L4D2_OT_RiggingOperator(bpy.types.Operator, L4D2_OT_BaseOperator):
         try:
             mapping_data_json = json.dumps(official_to_customs)
         except TypeError as e:
-            self.report({'ERROR'}, f"序列化映射数据失败: {str(e)}")
+            self.report({'ERROR'}, f"{_('Failed to serialize mapping data')}: {str(e)}")
             return {'CANCELLED'}
         
         # 调用确认面板
@@ -2721,18 +2721,18 @@ def register():
     bpy.types.Scene.mapping_list_index = bpy.props.IntProperty()
     bpy.types.Scene.mapping_ui_tab = bpy.props.EnumProperty(
         items=[
-            ('ALL', "全部映射", ""),
-            ('UNIQUE', "独立映射", ""),
-            ('COMMON', "通用映射", ""),
-            ('AXIS', "轴控制", "")
+            ('ALL', "All Mappings", ""),
+            ('UNIQUE', "Unique Mappings", ""),
+            ('COMMON', "Common Mappings", ""),
+            ('AXIS', "Axis Control", "")
         ],
         default='ALL',
         update=MappingDataManager.update_mapping_list  # 更新回调函数引用
     )
     bpy.types.Scene.use_search_mode = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.active_preset_name = bpy.props.EnumProperty(
-        name="活动预设",
-        description="当前活动的预设",
+        name="Active Preset",
+        description="Current active preset",
         items=get_preset_enum_items
     )
     
