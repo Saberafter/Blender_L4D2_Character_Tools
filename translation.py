@@ -407,22 +407,102 @@ data = {
         "Parameter Selection": "参数选择",
 
         # 😇 Flex Tools
+        "Name": "名称",
+        "Value": "值",
+        "The shape key name": "形态键的名称",
+        "The shape key value": "形态键的值",
         "Shape Keys Capture": "形态键捕捉",
         "Capture Non-Zero Deformation Shape Keys": "捕捉所有变形数值非零的形态键",
         "Add to Dict": "添加到字典",
         "Add the captured shape key values into the currently selected dictionary key": "将捕捉到的形态键值添加到当前选定的字典键中",
+        "Please select an expression from the list first": "请先在列表中选择一个表情",
+        "No active shape keys detected, please adjust shape key values in the Shape Keys panel first": "没有检测到活动形态键，请先在形态键面板调整形态键值",
+        "Shape keys added:": "形态键添加:", # f-string part
+        "No valid expression key selected": "没有选中有效的表情键",
+        "Invalid group index, please check the dropdown menu.": "无效的组索引,请检查下拉菜单。",
+        "Selected key does not exist in the dictionary.": "选择的键不存在于字典中。",
+        "Shape key": "形态键", # f-string part
+        "data deleted": "数据已删除", # f-string part
         "Organize Shape Keys": "整理形态键列表",
         "Automatically delete useless shape keys and organize the shape key list\nBe sure to backup": "自动删除无用形态键整理形态键列表\n注意备份",
         "Create Shape Keys": "形态键创建",
         "Create shape keys based on the key selected in the drop-down menu": "根据下拉菜单选择的键创建形态键",
         "Add New Key": "添加新键",
         "Add a new key to the dictionary": "添加一个新的键到字典中",
+        "Note": "备注",
+        "Key name cannot be empty!": "键名称不能为空!",
+        "Key": "键", # f-string part
+        "already exists!": "已经存在!", # f-string part
+        "New key added:": "已添加新键", # f-string part
         "Delete Key-Value Pair": "删除键值对",
         "Rename Key": "重命名键",
         "Rename the key currently selected in the drop-down menu": "重命名当前下拉菜单中选中的键",
+        "No key selected": "没有选中任何键",
+        "has been renamed to": "已重命名为", # f-string part
+        "Note for key": "键的备注", # f-string part
+        "has been changed.": "已更改。", # f-string part
+        "renamed to": "重命名为", # f-string part
+        "and note changed.": "且备注已更改。", # f-string part
         "Delete Key": "删除键",
         "Delete the currently selected key and its key-value pair": "删除当前选中的键及其键值对",
+        "Key not found or not selected": "没有找到键或键未选中",
+        "and its data have been deleted": "及其数据已删除", # f-string part
+        "L4D2 ShapeKey Tools": "L4D2 形态键工具",
+        "Capture & Add Shape Keys to Expression Group": "捕获&添加形态键到表情组合",
+        "Current Active Shape Keys": "当前活动形态键",
+        "Add to": "添加到", # f-string part
+        "Please select an expression first": "请先选择一个表情",
+        "No active shape keys detected": "没有检测到活动的形态键",
+        "Please adjust shape key values in the Shape Keys panel": "请在形态键面板调整形态键值",
+        "Preset:": "预设:",
+        "Selected:": "选中项:", # f-string part
+        "Note: None": "备注: 无",
+        "No shape key combinations defined": "未定义形态键组合",
+        "Combination": "组合", # f-string part
+        "Select a flex key from the list": "从列表中选择一个表情键",
+        "Search": "搜索",
+        "Filter items by name": "按名称过滤项目",
+        "Invert Filter": "反转过滤",
+        "Invert filter": "反转过滤器",
+        "Move Up": "上移",
+        "Cannot move: No item selected": "无法移动：未选择任何项目",
+        "Cannot move further up: Item already at the top": "无法继续向上移动：已有项目在顶部",
+        "Move Down": "下移",
+        "Cannot move further down: Item already at the bottom": "无法继续向下移动：已有项目在底部",
+        "All Flexes": "所有表情",
+        "Show all expressions, do not use preset filtering": "显示所有表情，不使用预设过滤",
+        "presets": "预设",
+        "Preset List": "预设列表",
+        "Save Preset": "保存预设",
+        "Preset Name": "预设名称",
+        "Preset name cannot be empty": "预设名称不能为空",
+        "Cannot use reserved name 'All' as preset name": "不能使用保留名称 'All' 作为预设名",
+        "New preset": "新预设", # f-string part
+        "created": "已创建", # f-string part
+        "Preset": "预设", # f-string part & normal
+        "updated": "已更新", # f-string part
+        "Manipulate the selection state of the list": "操作列表的选中状态",
         "Select All/Deselect All/Invert Selection": "全选/取消全选/反选",
+        "Need to select a model before proceeding.": "需要选中模型再进行操作。",
+        "Selected object is not a mesh model. Please select a mesh model to proceed.": "选中的对象不是网格模型。请选中一个网格模型再进行操作。",
+        "No shape key data on the object.": "对象上没有形态键数据。",
+        "Please select the expressions to create from the main panel list first": "请先在主面板的列表中选择要创建的表情",
+        "Batch created": "批量创建了", # f-string part
+        "shape keys": "个形态键", # f-string part
+        "Tracking information not found. Please create shape keys using the plugin first.": "没有找到跟踪信息，请先使用插件创建形态键。",
+        "Deleted": "已删除", # f-string part
+        "redundant shape keys.": "个多余形态键。", # f-string part
+        "Toggle Item Selection": "切换项目选择",
+        "Quickly toggle the selection state of the shape key": "快速切换形态键选择状态",
+        "Index of the item to toggle": "要切换的项目索引",
+        "Delete Preset": "删除预设",
+        "Delete the currently selected preset. This action cannot be undone.": "删除当前选中的预设。此操作无法撤销。",
+        "Cannot delete the 'All' preset.": "不能删除 'All' 预设。",
+        "not found, cannot delete.": "未找到，无法删除。", # f-string part
+        "has been deleted.": "已删除。", # f-string part
+        "Automatically capture shape key changes and display below": "自动捕获形态键变化并在下方显示",
+        "Captured Shape Keys": "捕获的形态键",
+        "List of currently captured non-zero shape keys": "当前捕获的非零形态键列表",
 
         # Update related translations
         "Check for updates": "检查更新",
@@ -438,6 +518,7 @@ data = {
 
         # 添加批量创建形态键UI的翻译
         "Batch Create": "批量创建形态键",
+        "Batch Create Shape Keys": "批量创建形态键",
         "Batch create shape keys in custom order": "批量自选顺序创建形态键",
         "Search": "搜索",
         "Filter shape keys by name": "按名称过滤形态键",
@@ -448,8 +529,5 @@ data = {
         "Preset Management:": "预设管理:",
         "Note:": "备注:",
         "Tip: Select shape keys to create and click OK": "提示: 选择要创建的形态键后点击确定",
-        "Toggle Item Selection": "切换项目选择",
-        "Quickly toggle the selection state of the shape key": "快速切换形态键选择状态",
-        "Index of the item to toggle": "要切换的项目索引",
         "selected": "个已选择",
 }

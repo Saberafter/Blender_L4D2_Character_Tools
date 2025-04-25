@@ -216,7 +216,8 @@ class L4D2_PT_BoneTools(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "💝LCT"
-
+    bl_options = {'DEFAULT_CLOSED'} 
+    
     def draw(self, context):
         layout = self.layout
         scene = context.scene
