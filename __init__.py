@@ -17,7 +17,7 @@
 bl_info = {
     "name": "💝L4D2 Character Tools",
     "author": "Merami",
-    "version": (1, 0, 6),
+    "version": (1, 1, 0),
     "blender": (2, 80, 0),
     "location": "View3D > Tool Shelf > 💝LCT",
     "description": "A plugin designed to enhance the efficiency of creating Left 4 Dead 2 character mods.",
