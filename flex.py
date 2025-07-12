@@ -19,9 +19,13 @@ import os
 import re
 import json
 from bpy.types import PropertyGroup
-from bpy.props import FloatProperty, BoolProperty, IntProperty, CollectionProperty, StringProperty, EnumProperty
+from bpy.props import FloatProperty, BoolProperty, IntProperty, CollectionProperty, StringProperty, EnumProperty, PointerProperty
 from .resources import flex_dict
 from .resources import flexmix_presets
+from bpy.app.translations import pgettext_iface as _
+
+# 防止递归更新的标志
+is_updating_from_plugin = False
 
 # 预设目录路径
 preset_dir = os.path.join(bpy.utils.resource_path('USER'), 'scripts', 'presets', 'L4D2 Character Tools')
@@ -33,8 +37,86 @@ flexmix_dict = {}
 key_notes = {}
 key_mapping = {}
 
-# 存储非零形态键值的全局列表
-current_shape_keys_values = []
+# 形态键捕获项定义
+class FlexCapturedKey(PropertyGroup):
+    name: StringProperty(name=_("Name"), description=_("The shape key name"))
+    value: FloatProperty(
+        name=_("Value"), 
+        description=_("The shape key value"),
+        min=0.0, 
+        max=1.0,
+        precision=3,
+        step=1,
+        update=lambda self, context: update_shape_key_from_plugin(self, context)
+    )
+
+# 从插件更新模型上的形态键值
+def update_shape_key_from_plugin(self, context):
+    global is_updating_from_plugin
+    # 防止递归更新
+    if is_updating_from_plugin:
+        return
+    
+    # 设置标志，表示正在从插件更新
+    is_updating_from_plugin = True
+    
+    try:
+        obj = context.active_object
+        if obj and obj.type == 'MESH' and obj.data.shape_keys:
+            # 查找对应的形态键并更新其值
+            shape_key = obj.data.shape_keys.key_blocks.get(self.name)
+            if shape_key:
+                shape_key.value = self.value
+    finally:
+        # 确保标志被重置
+        is_updating_from_plugin = False
+
+# 处理器函数，监测形态键变化
+def depsgraph_update_post_handler(scene):
+    global is_updating_from_plugin
+    # 如果禁用监测或正在从插件更新，则不处理
+    if not scene.enable_flex_monitoring or is_updating_from_plugin:
+        return
+    
+    # 获取活动对象
+    obj = bpy.context.active_object
+    if not obj or obj.type != 'MESH' or not obj.data.shape_keys:
+        # 如果没有合适的对象或形态键，清空捕获列表
+        if len(scene.captured_shape_keys) > 0:
+            scene.captured_shape_keys.clear()
+        return
+    
+    # 遍历所有形态键
+    for shape_key in obj.data.shape_keys.key_blocks:
+        # 跳过基础形态键
+        if shape_key == obj.data.shape_keys.reference_key:
+            continue
+        
+        # 检查形态键值
+        if shape_key.value > 0:
+            # 查找是否已在捕获列表中
+            found = False
+            for captured in scene.captured_shape_keys:
+                if captured.name == shape_key.name:
+                    # 更新值
+                    if abs(captured.value - shape_key.value) > 0.001:  # 添加一点容差
+                        is_updating_from_plugin = True
+                        captured.value = shape_key.value
+                        is_updating_from_plugin = False
+                    found = True
+                    break
+            
+            # 如果不在列表中，添加它
+            if not found:
+                item = scene.captured_shape_keys.add()
+                item.name = shape_key.name
+                item.value = shape_key.value
+        else:
+            # 如果形态键值为0，从列表中移除
+            for i, captured in enumerate(scene.captured_shape_keys):
+                if captured.name == shape_key.name:
+                    scene.captured_shape_keys.remove(i)
+                    break
 
 # 保存骨骼字典到文件
 def save_flexmix_dict(mix_dict, key_notes):
@@ -122,7 +204,34 @@ def update_enum(self, context):
                 for key_index, (key, value) in enumerate(group.items()):
                     create_or_update_prop(selected_index, list_index, key_index, key, value)
 
+# 当UIList索引更改时触发此函数
+def update_flexmix_index(self, context):
+    global key_mapping
+    key_mapping = {}
 
+    # 删除已有的动态属性
+    for flex_key in [f for f in dir(context.scene) if f.startswith("flex_key_group_")]:
+        delattr(bpy.types.Scene, flex_key)
+
+    # 检查索引是否有效
+    wm = context.window_manager
+    if wm.flexmix_index < 0 or wm.flexmix_index >= len(wm.flexmix_items):
+        return
+    
+    # 获取当前选中的项目名称
+    selected_key = wm.flexmix_items[wm.flexmix_index].name
+    
+    if selected_key in flexmix_dict:
+        # 使用全局字典序号作为enum_index
+        all_keys = list(flexmix_dict.keys())
+        if selected_key in all_keys:
+            selected_index = all_keys.index(selected_key) + 1
+            
+            selected_list = flexmix_dict.get(selected_key)
+            if selected_list is not None:
+                for list_index, group in enumerate(selected_list):
+                    for key_index, (key, value) in enumerate(group.items()):
+                        create_or_update_prop(selected_index, list_index, key_index, key, value)
 
 # 更新下拉菜单枚举项的函数
 def update_flex_keys_enum_items():
@@ -139,6 +248,22 @@ def init_enum_items(self, context):
     items = [(k, str(i)+'. '+k, "") for i, k in enumerate(flexmix_dict.keys(), start=0)] if flexmix_dict.keys() else []
     return items
 
+# 分割比例更新函数
+def update_split_ratio(self, context):
+    # 这里不需要特别的更新逻辑，因为属性变更会自动触发界面重绘
+    pass
+
+# 注册场景属性：分割比例
+bpy.types.Scene.flex_split_ratio = FloatProperty(
+    name="Split Ratio",
+    description="调整左右分栏的分割比例",
+    default=0.5,
+    min=0.1,
+    max=0.9,
+    precision=2,
+    update=update_split_ratio
+)
+
 bpy.types.Scene.flex_keys_enum = EnumProperty(items=init_enum_items,
                                                         update=update_enum)
 
@@ -146,7 +271,7 @@ bpy.types.Scene.flex_keys_enum = EnumProperty(items=init_enum_items,
 class L4D2_OT_StoreShapeKeys(bpy.types.Operator):
     """Capture Non-Zero Deformation Shape Keys"""
     bl_idname = "l4d2.store_shape_keys"
-    bl_label = "Shape Keys Capture"
+    bl_label = _("Shape Keys Capture")
 
     def execute(self, context):
         obj = bpy.context.active_object
@@ -159,7 +284,7 @@ class L4D2_OT_StoreShapeKeys(bpy.types.Operator):
                 for shape_key in obj.data.shape_keys.key_blocks
                 if shape_key.value != 0 and shape_key != obj.data.shape_keys.reference_key
             ]
-            self.report({'INFO'}, f"非零形态键记录: '{current_shape_keys_values}' ")
+            self.report({'INFO'}, f"{_('Non-zero shape keys recorded:')} '{current_shape_keys_values}' ")
             print("非零形态键记录: ", current_shape_keys_values)  # 用于调试
 
         return {'FINISHED'}
@@ -167,31 +292,60 @@ class L4D2_OT_StoreShapeKeys(bpy.types.Operator):
 class L4D2_OT_AddToDict(bpy.types.Operator):
     """Add the captured shape key values into the currently selected dictionary key"""
     bl_idname = "l4d2.add_to_dict"
-    bl_label = "Add to Dict"
+    bl_label = _("Add to Dict")
 
     def execute(self, context):
-        selected_key = context.scene.flex_keys_enum
-        global current_shape_keys_values, flexmix_dict
-        if selected_key and current_shape_keys_values:
-            current_shape_dict = {name: value for name, value in current_shape_keys_values}
+        wm = context.window_manager
+        scene = context.scene
+        global flexmix_dict
+        
+        # 检查是否有项目被选中
+        if wm.flexmix_index < 0 or wm.flexmix_index >= len(wm.flexmix_items):
+            self.report({'ERROR'}, _("Please select an expression from the list first"))
+            return {'CANCELLED'}
+        
+        selected_key = wm.flexmix_items[wm.flexmix_index].name
+        
+        # 使用实时捕获的形态键
+        if len(scene.captured_shape_keys) == 0:
+            self.report({'ERROR'}, _("No active shape keys detected, please adjust shape key values in the Shape Keys panel first"))
+            return {'CANCELLED'}
+        
+        # 创建形态键字典
+        current_shape_dict = {captured.name: captured.value for captured in scene.captured_shape_keys}
+        
+        if selected_key:
+            # 确保要插入的表情键存在于字典中
+            if selected_key not in flexmix_dict:
+                flexmix_dict[selected_key] = []
+            
+            # 添加到字典
             flexmix_dict[selected_key].append(current_shape_dict)
             save_flexmix_dict(flexmix_dict, key_notes)  # 保存字典到文件
-            context.scene.flex_keys_enum = selected_key  # 触发下拉列表的 update 函数，以刷新当前显示的属性
-            self.report({'INFO'}, f"形态键添加: '{selected_key}' ")
+            
+            # 触发更新函数，刷新当前显示的属性
+            update_flexmix_index(context.window_manager, context)
+            self.report({'INFO'}, f"{_('Shape keys added:')} '{selected_key}' ")
+        
         return {'FINISHED'}
 
 class L4D2_OT_DeleteFlexKeyPair(bpy.types.Operator):
     bl_idname = "l4d2.delete_flex_key_pair"
-    bl_label = "Delete Key-Value Pair"
+    bl_label = _("Delete Key-Value Pair")
     group_index: IntProperty()  # 组索引，现在直接从1开始以匹配UI表现
     key_id: StringProperty()
     enum_index: IntProperty()  # 枚举索引，从1开始
 
     def execute(self, context):
-        print("正在删除键值对，枚举索引:", self.enum_index, "组索引:", self.group_index, "键ID:", self.key_id)
-
-        selected_key = context.scene.flex_keys_enum
-        print("选择的键:", selected_key)
+        wm = context.window_manager
+        
+        # 获取当前选中的表情键
+        if wm.flexmix_index < 0 or wm.flexmix_index >= len(wm.flexmix_items):
+            self.report({'ERROR'}, _("No valid expression key selected"))
+            return {'CANCELLED'}
+            
+        selected_key = wm.flexmix_items[wm.flexmix_index].name
+        print("正在删除键值对，选择的键:", selected_key, "组索引:", self.group_index, "键ID:", self.key_id)
 
         if selected_key in flexmix_dict:
             flex_list = flexmix_dict[selected_key]
@@ -210,13 +364,13 @@ class L4D2_OT_DeleteFlexKeyPair(bpy.types.Operator):
                 
                 # 更新保存，触发UI更新
                 save_flexmix_dict(flexmix_dict, key_notes)
-                update_enum(context.scene, context)
-                self.report({'INFO'}, f"形态键 '{selected_key}' 数据已删除")
+                update_flexmix_index(wm, context)
+                self.report({'INFO'}, f"{_('Shape key')} '{selected_key}' {_('data deleted')}")
                 return {'FINISHED'}
             else:
-                self.report({'ERROR'}, "无效的组索引,请检查下拉菜单。")
+                self.report({'ERROR'}, _("Invalid group index, please check the dropdown menu."))
         else:
-            self.report({'ERROR'}, "选择的键不存在于字典中。")
+            self.report({'ERROR'}, _("Selected key does not exist in the dictionary."))
 
         return {'CANCELLED'}
 
@@ -226,9 +380,9 @@ class L4D2_OT_DeleteFlexKeyPair(bpy.types.Operator):
 class L4D2_OT_AddNewFlexKey(bpy.types.Operator):
     """Add a new key to the dictionary"""
     bl_idname = "l4d2.add_new_flex_key"
-    bl_label = "Add New Key"
-    new_key_name: StringProperty(name="Name")
-    new_key_note: StringProperty(name="Note")  # 新增：新建键的备注
+    bl_label = _("Add New Key")
+    new_key_name: StringProperty(name=_("Name"))
+    new_key_note: StringProperty(name=_("Note"))  # 新增：新建键的备注
 
 
     def invoke(self, context, event):
@@ -238,10 +392,10 @@ class L4D2_OT_AddNewFlexKey(bpy.types.Operator):
         key_name = self.new_key_name
         # 添加判断，如果键名称为空
         if key_name == '':
-            self.report({'ERROR'}, f"键名称不能为空!")
+            self.report({'ERROR'}, _("Key name cannot be empty!"))
             return {'CANCELLED'}
         if key_name in flexmix_dict:
-            self.report({'ERROR'}, f"键 '{key_name}' 已经存在!")
+            self.report({'ERROR'}, f"{_('Key')} '{key_name}' {_('already exists!')}")
             return {'CANCELLED'}
 
 
@@ -250,12 +404,14 @@ class L4D2_OT_AddNewFlexKey(bpy.types.Operator):
         key_notes[key_name] = self.new_key_note  # 新增：设置新建键的备注
         save_flexmix_dict(flexmix_dict, key_notes)  # 修改：保存时带上 key_notes 字典
 
-        # 更新下拉菜单枚举项
-        bpy.types.Scene.flex_keys_enum = EnumProperty(items=init_enum_items(context, None),
-                                                                update=update_enum)
+        # 添加新项到 UIList
+        wm = context.window_manager
+        item = wm.flexmix_items.add()
+        item.name = key_name
+        item.selected = False
+        wm.flexmix_index = len(wm.flexmix_items) - 1  # 选择新添加的项目
 
-        self.report({'INFO'}, f"已添加新键 '{key_name}'.")
-        context.scene.flex_keys_enum = key_name  # 选择新添加的键
+        self.report({'INFO'}, f"{_('New key added:')} '{key_name}'.")
         return {'FINISHED'}
     
     def draw(self, context):  # 加入此方法，给对话框添加输入字段
@@ -265,31 +421,40 @@ class L4D2_OT_AddNewFlexKey(bpy.types.Operator):
 class L4D2_OT_RenameFlexKey(bpy.types.Operator):
     """Rename the key currently selected in the drop-down menu"""
     bl_idname = "l4d2.rename_flex_key"
-    bl_label = "Rename Key"
-    new_key_name: StringProperty(name="Name")
-    new_key_note: StringProperty(name="Note")  # 新增：重命名键后的备注
+    bl_label = _("Rename Key")
+    new_key_name: StringProperty(name=_("Name"))
+    new_key_note: StringProperty(name=_("Note"))  # 新增：重命名键后的备注
 
     def invoke(self, context, event):
-        selected_key = context.scene.flex_keys_enum
-        if not selected_key:
-            self.report({'ERROR'}, "没有选中任何键")
+        wm = context.window_manager
+        if wm.flexmix_index < 0 or wm.flexmix_index >= len(wm.flexmix_items):
+            self.report({'ERROR'}, _("No key selected"))
             return {'CANCELLED'}
+            
+        selected_key = wm.flexmix_items[wm.flexmix_index].name
         self.new_key_name = selected_key
-        self.new_key_note = key_notes.get(self.new_key_name, "")  # 加入此行，初始化新键备注的值
-        return context.window_manager.invoke_props_dialog(self)  # 加入此行，创建一个包含操作属性的对话框
+        self.new_key_note = key_notes.get(self.new_key_name, "")  # 初始化新键备注的值
+        return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
         global flexmix_dict
         global key_notes
-        old_key_name = context.scene.flex_keys_enum
+        wm = context.window_manager
+        
+        if wm.flexmix_index < 0 or wm.flexmix_index >= len(wm.flexmix_items):
+            self.report({'ERROR'}, _("No key selected"))
+            return {'CANCELLED'}
+            
+        old_key_name = wm.flexmix_items[wm.flexmix_index].name
         new_key_name = self.new_key_name
         old_key_note = key_notes.get(old_key_name, "")
         new_key_note = self.new_key_note
 
         # 添加判断，如果新键名为空
         if new_key_name == '':
-            self.report({'ERROR'}, f"键名称不能为空!")
+            self.report({'ERROR'}, _("Key name cannot be empty!"))
             return {'CANCELLED'}
+            
         # 新建一个有序的空字典和备注字典
         new_flexmix_dict = {}
         new_key_notes = {}
@@ -299,11 +464,11 @@ class L4D2_OT_RenameFlexKey(bpy.types.Operator):
                 new_flexmix_dict[new_key_name] = flexmix_dict[old_key_name]
                 new_key_notes[new_key_name] = new_key_note  # 新键的备注
                 if new_key_name != old_key_name and new_key_note == old_key_note:
-                    self.report({'INFO'}, f"键 '{old_key_name}' 已重命名为 '{new_key_name}'.")
+                    self.report({'INFO'}, f"{_('Key')} '{old_key_name}' {_('has been renamed to')} '{new_key_name}'.")
                 elif new_key_name == old_key_name and new_key_note != old_key_note:
-                    self.report({'INFO'}, f"键 '{old_key_name}' 的备注已更改。")
+                    self.report({'INFO'}, f"{_('Note for key')} '{old_key_name}' {_('has been changed.')}")
                 elif new_key_name != old_key_name and new_key_note != old_key_note:
-                    self.report({'INFO'}, f"键 '{old_key_name}' 已重命名为 '{new_key_name}'，且备注已更改。")
+                    self.report({'INFO'}, f"{_('Key')} '{old_key_name}' {_('renamed to')} '{new_key_name}' {_('and note changed.')}")
             else:
                 new_flexmix_dict[key] = value
                 new_key_notes[key] = key_notes.get(key, "")  # 保留原来的备注
@@ -313,10 +478,12 @@ class L4D2_OT_RenameFlexKey(bpy.types.Operator):
         key_notes = new_key_notes
         save_flexmix_dict(flexmix_dict, key_notes)  # 保存时带上 key_notes 字典
 
-        # 更新下拉菜单枚举项
-        bpy.types.Scene.flex_keys_enum = EnumProperty(items=init_enum_items(context, None),
-                                                                update=update_enum)
-        context.scene.flex_keys_enum = new_key_name  # 选择已重命名的键
+        # 更新 UIList 中的项目名称
+        wm.flexmix_items[wm.flexmix_index].name = new_key_name
+        
+        # 更新相关 UI 元素
+        update_flexmix_index(wm, context)
+        
         return {'FINISHED'}
     
     def draw(self, context):  # 加入此方法，给对话框添加输入字段
@@ -326,12 +493,19 @@ class L4D2_OT_RenameFlexKey(bpy.types.Operator):
 class L4D2_OT_DeleteFlexKey(bpy.types.Operator):
     """Delete the currently selected key and its key-value pair"""
     bl_idname = "l4d2.delete_flex_key"
-    bl_label = "Delete Key"
+    bl_label = _("Delete Key")
     
     def execute(self, context):
         global flexmix_dict
         global key_notes  # 保证我们操作的是全局变量
-        selected_key = context.scene.flex_keys_enum
+        wm = context.window_manager
+        
+        # 检查是否有选中的项目
+        if wm.flexmix_index < 0 or wm.flexmix_index >= len(wm.flexmix_items):
+            self.report({'WARNING'}, _("Key not found or not selected"))
+            return {'CANCELLED'}
+            
+        selected_key = wm.flexmix_items[wm.flexmix_index].name
 
         # 删除键及其数据
         if selected_key and selected_key in flexmix_dict:
@@ -341,99 +515,261 @@ class L4D2_OT_DeleteFlexKey(bpy.types.Operator):
                 del key_notes[selected_key]
             save_flexmix_dict(flexmix_dict, key_notes)  # 保存时同时保存备注
 
-            # 更新下拉菜单
-            update_flex_keys_enum_items()
+            # 从 UIList 中删除项目
+            wm.flexmix_items.remove(wm.flexmix_index)
+            
+            # 调整选择的索引
+            if len(wm.flexmix_items) > 0:
+                if wm.flexmix_index >= len(wm.flexmix_items):
+                    wm.flexmix_index = len(wm.flexmix_items) - 1
+            else:
+                wm.flexmix_index = -1
 
-            # 如果存在其他键，则自动选择第一个键
-            keys = list(flexmix_dict.keys())
-            if keys:
-                context.scene.flex_keys_enum = keys[0]
-
-            self.report({'INFO'}, f"键 '{selected_key}' 及其数据已删除")
+            self.report({'INFO'}, f"{_('Key')} '{selected_key}' {_('and its data have been deleted')}")
             return {'FINISHED'}
         else:
-            self.report({'WARNING'}, "没有找到键或键未选中")
+            self.report({'WARNING'}, _("Key not found or not selected"))
             return {'CANCELLED'}
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
 
 class L4D2_PT_ShapeKeyPanel(bpy.types.Panel):
-    bl_label = "L4D2 ShapeKey Tools"
+    bl_label = _("L4D2 ShapeKey Tools")
     bl_idname = "L4D2_PT_ShapeKey"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
 
     def draw(self, context):
         layout = self.layout
+        wm = context.window_manager
+        scene = context.scene
+        
+        # 上方按钮区域
         row = layout.row()
         row.operator("l4d2.create_selected_key", icon="ADD")
-        row.operator("l4d2.all_create",text = 'Batch Create', icon="ADD")
+        row.operator("l4d2.all_create", text=_('Batch Create'), icon="ADD")
         layout.operator("l4d2.sort_shape_keys", icon="SORTSIZE")
-        row = layout.row()
-        row.operator("l4d2.store_shape_keys", icon= "ZOOM_ALL")
-        row.operator("l4d2.add_to_dict", icon= "RNA_ADD")
-        row = layout.row()
+        
+        # 实时监测开关
+        monitor_row = layout.row()
+        monitor_row.prop(scene, "enable_flex_monitoring", text=_("Capture & Add Shape Keys to Expression Group"), icon="SHAPEKEY_DATA")
+        
+        # 当前捕获的形态键区域
+        if scene.enable_flex_monitoring:
+            captured_box = layout.box()
+            captured_box.label(text=_("Current Active Shape Keys"), icon="KEY_HLT")
+            
+            # 如果有捕获的形态键，显示它们
+            if len(scene.captured_shape_keys) > 0:
+                for captured in scene.captured_shape_keys:
+                    row = captured_box.row()
+                    row.prop(captured, "value", text=captured.name, slider=True)
+                
+                # 添加到当前表情的按钮
+                add_row = layout.row()
+                add_row.scale_y = 1.2
+                if wm.flexmix_index >= 0 and wm.flexmix_index < len(wm.flexmix_items):
+                    selected_key = wm.flexmix_items[wm.flexmix_index].name
+                    add_row.operator("l4d2.add_to_dict", text=f"{_('Add to')} '{selected_key}'", icon="RNA_ADD")
+                else:
+                    add_row.operator("l4d2.add_to_dict", text=_("Please select an expression first"), icon="RNA_ADD")
+                    add_row.enabled = False
+            else:
+                captured_box.label(text=_("No active shape keys detected"), icon="INFO")
+                layout.label(text=_("Please adjust shape key values in the Shape Keys panel"), icon="ERROR")
+        
+        # 1. 预设管理区域 - 独立显示
+        preset_box = layout.box()
+        preset_row = preset_box.row(align=True)
+        preset_row.label(text=_("Preset:"), icon='PRESET')
+        # 增加菜单宽度
+        preset_row.scale_x = 3.0
+        preset_row.prop(wm, "presets", text="")
+        preset_row.scale_x = 1.0
+        preset_row.operator("l4d2.save_flex_preset", text="", icon="FILE_TICK")
+        preset_row.operator("l4d2.delete_flex_preset", text="", icon="TRASH")
+        
+        # 创建左右分栏，使用场景属性作为分割因子
+        split = layout.split(factor=context.scene.flex_split_ratio)
+        
+        # 左侧：表情列表和操作按钮
+        left_col = split.column()
+        
+        # 列表上方按钮区域 - 全选按钮与删除/上移/下移按钮放在同一行
+        select_box = left_col.box()
+        select_row = select_box.row()
+        
+        # 左侧的全选/反选按钮
+        button_left = select_row.row(align=True)
+        
+        # 参考jigglebone.py的逻辑，动态显示全选/反选按钮
+        if len(wm.flexmix_items) > 0:
+            # 检查是否所有项目都已选中
+            if all(item.selected for item in wm.flexmix_items):
+                # 如果全部选中，显示取消全选按钮
+                button_left.operator('l4d2.select_action', text="", icon='CHECKBOX_HLT').action = 'NONE'
+            else:
+                # 如果未全部选中，显示全选按钮
+                button_left.operator('l4d2.select_action', text="", icon='CHECKBOX_DEHLT').action = 'ALL'
+                
+                # 检查是否有任何项目选中
+                if any(item.selected for item in wm.flexmix_items):
+                    # 如果有选中项，显示反选按钮
+                    button_left.operator('l4d2.select_action', text="", icon='UV_SYNC_SELECT').action = 'INVERSE'
+        
+        # 右侧的操作按钮（删除/上移/下移）
+        button_right = select_row.row(align=True)
+        button_right.alignment = 'RIGHT'
+        button_right.operator("l4d2.add_new_flex_key", text="", icon='ADD')
+        button_right.operator("l4d2.rename_flex_key", text="", icon='GREASEPENCIL')
+        button_right.operator("l4d2.delete_flex_key", icon='X', text="")
+        button_right.operator("l4d2.flexmix_move_up", icon='TRIA_UP', text="")
+        button_right.operator("l4d2.flexmix_move_down", icon='TRIA_DOWN', text="")
+        
+        # 主列表区域
+        list_row = left_col.row()
+        list_row.template_list(
+            "FLEXMIX_UL_List", "", 
+            wm, "flexmix_items", 
+            wm, "flexmix_index",
+            rows=21  # 增加行数，更好地利用垂直空间
+        )
+        
+        # 右侧：当前选中表情的详细信息（形态键组合）
+        right_col = split.column()
+        
+        # 显示选中项和备注信息 - 移到右侧栏
+        if wm.flexmix_index >= 0 and wm.flexmix_index < len(wm.flexmix_items):
+            selected_item = wm.flexmix_items[wm.flexmix_index]
+            
+            # 显示选中项信息框
+            info_box = right_col.box()
+            
+            # 第一排：显示Selected
+            title_row = info_box.row()
+            title_row.label(text=f"{_('Selected:')} {selected_item.name}", icon='SHAPEKEY_DATA')
+            
+            # 第二排：显示Note
+            if selected_item.name in key_notes and key_notes[selected_item.name]:
+                note_row = info_box.row()
+                note_row.label(text=f"{_('Note:')} {key_notes[selected_item.name]}", icon='INFO')
+            else:
+                note_row = info_box.row()
+                note_row.label(text=_("Note: None"), icon='INFO')
+            
+            # 显示与当前选择的表情相关的动态属性（形态键组合）
+            selected_key = selected_item.name
+            
+            if selected_key in flexmix_dict:
+                scene = context.scene
+                last_group_index = None
+                
+                # 如果没有组合，显示提示信息
+                if not flexmix_dict[selected_key]:
+                    right_col.label(text=_("No shape key combinations defined"), icon='ERROR')
+                
+                # 按组索引和键索引排序显示动态属性
+                for attr in sorted((a for a in dir(scene) if a.startswith("flex_key_group_")), 
+                                  key=lambda x: (int(x.split("_")[3]), int(x.split("_")[4]), int(x.split("_")[5]))):
+                    enum_index, group_index, key_index = map(int, attr.split("_")[3:])
+                    
+                    if (enum_index, group_index) != last_group_index:
+                        box = right_col.box()
+                        box.label(text=f"{_('Combination')} {group_index}", icon='GROUP')
+                        last_group_index = (enum_index, group_index)
+                        
+                    row = box.row()
+                    row.prop(scene, attr)
+                    
+                    # 传递参数给删除操作符
+                    op = row.operator("l4d2.delete_flex_key_pair", text="", icon="X")
+                    op.enum_index = enum_index
+                    op.group_index = group_index
+                    op.key_id = "_".join(attr.split("_")[3:])
+        else:
+            right_col.label(text=_("Select a flex key from the list"), icon='INFO')
 
-
-
-        obj = context.active_object
-        if current_shape_keys_values and obj and obj.type == 'MESH' and obj.data.shape_keys:
-            # 当当前形态键值列表有内容时，再绘制形态键显示框
-            box = layout.box() 
-            # 展示非零形态键
-            for key_name, _ in current_shape_keys_values:
-                key_block = obj.data.shape_keys.key_blocks.get(key_name)
-                if key_block:
-                    box.prop(key_block, "value", text=key_name, slider=True)
-        row = layout.row(align=True)
-        row.prop(context.scene, "flex_keys_enum", text='')
-        row.operator("l4d2.add_new_flex_key", text="", icon="ADD")
-        row.operator("l4d2.rename_flex_key", text="", icon="GREASEPENCIL")
-        row.operator("l4d2.delete_flex_key", text="", icon="X") 
-        key_name = context.scene.flex_keys_enum
-        note_name = key_notes.get(key_name, "")
+        # 添加分割比例滑块
         box = layout.box()
-        box.label(text=note_name)
-
-        scene = context.scene
-        last_group_index = None  # 为了区分不同列表的开始，这里指的是（enum_index, group_index）的组合
-        box = None
-
-        # attr格式: flex_key_group_{枚举索引}_{组索引}_{键索引}
-        for attr in sorted((a for a in dir(scene) if a.startswith("flex_key_group_")), key=lambda x: (int(x.split("_")[3]), int(x.split("_")[4]), int(x.split("_")[5]))):
-            enum_index, group_index, key_index = map(int, attr.split("_")[3:])
-
-            if (enum_index, group_index) != last_group_index:
-                box = layout.box()
-                last_group_index = (enum_index, group_index)
-                
-            if box is not None:
-                row = box.row()
-                row.prop(scene, attr)
-                
-                # 传递 enum_index 和 key_id 给操作符
-                op = row.operator("l4d2.delete_flex_key_pair", text="", icon="X")
-                op.enum_index = enum_index
-                op.group_index = group_index  # 直接添加组索引，不做调整
-                op.key_id = "_".join(attr.split("_")[3:])
-
+        box.prop(context.scene, "flex_split_ratio", slider=True)
 
 # UI列表项类定义
 class FLEXMIX_UL_List(bpy.types.UIList):
+    # 添加搜索过滤功能
+    filter_name: StringProperty(
+        name=_("Search"),
+        description=_("Filter items by name"),
+        default=""
+    )
+    
+    use_filter_invert: BoolProperty(
+        name=_("Invert Filter"),
+        description=_("Invert filter"),
+        default=False
+    )
+    
+    # 类属性：用于存储外部搜索条件
+    _search_term = ""
+    
+    @classmethod
+    def set_search_term(cls, term):
+        cls._search_term = term if term else ""
+    
+    # 实现过滤功能
+    def filter_items(self, context, data, propname):
+        items = getattr(data, propname)
+        filtered = [self.bitflag_filter_item] * len(items)
+        
+        # 首先检查是否有内置搜索文本
+        if self.filter_name:
+            for i, item in enumerate(items):
+                if self.filter_name.lower() not in item.name.lower():
+                    filtered[i] &= ~self.bitflag_filter_item
+            
+            # 如果需要反转过滤结果
+            if self.use_filter_invert:
+                for i in range(len(filtered)):
+                    filtered[i] ^= self.bitflag_filter_item
+        
+        # 然后检查是否有类共享的搜索条件
+        elif FLEXMIX_UL_List._search_term:
+            search_term = FLEXMIX_UL_List._search_term.lower()
+            for i, item in enumerate(items):
+                if search_term not in item.name.lower():
+                    filtered[i] &= ~self.bitflag_filter_item
+        
+        # 返回过滤结果和排序方法（这里不做排序）
+        return filtered, []
+
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            # 创建一个启用鼠标点击的行
             row = layout.row(align=True)
+            
+            # 复选框 - 用于预设编辑
             row.prop(item, "selected", text="", emboss=False, icon='CHECKBOX_HLT' if item.selected else 'CHECKBOX_DEHLT')
+            
+            # 显示索引
             row.scale_x = 0.1
-            row.label(text=str(index))  # 新增的代码: 在列表每一项前面加一个数字顺序
-            row.scale_x = 0.9
-            row.prop(item, "name", text="", emboss=False, icon='SHAPEKEY_DATA')
+            row.label(text=f"{index:02d}")
+            row.scale_x = 1.0
+            
+            # 使用操作符按钮来显示项目名称和处理点击事件 - 只用于高亮选中，不改变复选框状态
+            is_active = index == context.window_manager.flexmix_index
+            props = row.operator("l4d2.toggle_item_selection", text=item.name, emboss=False, 
+                               icon='KEYFRAME_HLT' if is_active else 'SHAPEKEY_DATA')
+            props.index = index
         elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
             layout.label(text="", icon='SHAPEKEY_DATA')
 
-    
+    def draw_filter(self, context, layout):
+        # 绘制搜索过滤UI
+        row = layout.row(align=True)
+        row.prop(self, "filter_name", text="", icon='VIEWZOOM')
+        row.prop(self, "use_filter_invert", text="", icon='ARROW_LEFTRIGHT')
+
 class FlexmixItem(PropertyGroup):
     # 字典键的名字。对于每一个flexmix_dict中的键，都会有一个FlexmixItem
     name: StringProperty()
@@ -441,50 +777,76 @@ class FlexmixItem(PropertyGroup):
     
 class L4D2_OT_FlexMixMoveUp(bpy.types.Operator):
     bl_idname = "l4d2.flexmix_move_up"
-    bl_label = "Move Up"
+    bl_label = _("Move Up")
 
     def execute(self, context):
         wm = context.window_manager
-        moved_items_indices = [i for i, item in enumerate(wm.flexmix_items) if item.selected]
-
-        if len(moved_items_indices) > 1:
-            for i in moved_items_indices:
-                if i > 0 and wm.flexmix_items:
-                    wm.flexmix_items.move(i, i - 1)
-            wm.flexmix_index = max(0, moved_items_indices[0] - 1)
-            return {'FINISHED'}
-        elif len(moved_items_indices) == 1 or wm.flexmix_index > 0:
-            index = wm.flexmix_index
-            wm.flexmix_items.move(index, index - 1)
-            wm.flexmix_index = max(0, index - 1)
-            return {'FINISHED'}
-        else:
-            self.report({'INFO'}, "无法继续向上移动项目")
+        # 获取所有选中项的索引，并按照从小到大排序
+        selected_indices = [i for i, item in enumerate(wm.flexmix_items) if item.selected]
+        selected_indices.sort()
+        
+        if not selected_indices:
+            # 如果没有选中项但有当前索引，则使用当前索引
+            if wm.flexmix_index >= 0 and wm.flexmix_index < len(wm.flexmix_items):
+                selected_indices = [wm.flexmix_index]
+            else:
+                self.report({'INFO'}, _("Cannot move: No item selected"))
+                return {'CANCELLED'}
+        
+        # 检查是否有项目已在顶部（索引为0）
+        if min(selected_indices) == 0:
+            self.report({'INFO'}, _("Cannot move further up: Item already at the top"))
             return {'CANCELLED'}
+        
+        # 从小到大移动项目，这样可以保证索引不会因为移动而变化
+        moved = False
+        for i in selected_indices:
+            if i > 0:  # 确保不会移动顶部项目
+                wm.flexmix_items.move(i, i - 1)
+                moved = True
+        
+        # 更新当前索引，指向第一个移动的项目的新位置
+        if moved and selected_indices:
+            wm.flexmix_index = selected_indices[0] - 1
+        
+        return {'FINISHED'}
 
 
 class L4D2_OT_FlexMixMoveDown(bpy.types.Operator):
     bl_idname = "l4d2.flexmix_move_down"
-    bl_label = "Move Down"
+    bl_label = _("Move Down")
 
     def execute(self, context):
         wm = context.window_manager
-        moved_items_indices = [i for i, item in enumerate(wm.flexmix_items) if item.selected]
-
-        if len(moved_items_indices) > 1:
-            for i in reversed(moved_items_indices):
-                if i < len(wm.flexmix_items) - 1:
-                    wm.flexmix_items.move(i, i + 1)
-            wm.flexmix_index = min(len(wm.flexmix_items) - 1, moved_items_indices[-1] + 1)
-            return {'FINISHED'}
-        elif len(moved_items_indices) == 1 or wm.flexmix_index < len(wm.flexmix_items) - 1:
-            index = wm.flexmix_index
-            wm.flexmix_items.move(index, index + 1)
-            wm.flexmix_index = min(len(wm.flexmix_items) - 1, index + 1)
-            return {'FINISHED'}
-        else:
-            self.report({'INFO'}, "无法继续向下移动项目")
+        # 获取所有选中项的索引，并按照从大到小排序（反向）
+        selected_indices = [i for i, item in enumerate(wm.flexmix_items) if item.selected]
+        selected_indices.sort(reverse=True)  # 从大到小排序
+        
+        if not selected_indices:
+            # 如果没有选中项但有当前索引，则使用当前索引
+            if wm.flexmix_index >= 0 and wm.flexmix_index < len(wm.flexmix_items):
+                selected_indices = [wm.flexmix_index]
+            else:
+                self.report({'INFO'}, _("Cannot move: No item selected"))
+                return {'CANCELLED'}
+        
+        # 检查是否有项目已在底部
+        if max(selected_indices) >= len(wm.flexmix_items) - 1:
+            self.report({'INFO'}, _("Cannot move further down: Item already at the bottom"))
             return {'CANCELLED'}
+        
+        # 从大到小移动项目，这样可以保证索引不会因为移动而变化
+        moved = False
+        for i in selected_indices:
+            if i < len(wm.flexmix_items) - 1:  # 确保不会移动底部项目
+                wm.flexmix_items.move(i, i + 1)
+                moved = True
+        
+        # 更新当前索引，指向第一个移动的项目（在反向排序中是最后一个）的新位置
+        if moved and selected_indices:
+            wm.flexmix_index = selected_indices[-1] + 1
+        
+        return {'FINISHED'}
 
 def save_presets(presets):
     with open(flexmix_presets_path, 'w') as f:
@@ -506,34 +868,47 @@ def load_presets():
 
 def get_presets_items(self, context):
     presets = load_presets()
-    items = [(k, k, "") for k in presets.keys()]
+    # 添加"All"选项作为第一个选项
+    items = [("All", "All Flexes", "Show all expressions, do not use preset filtering")]
+    # 添加预设选项
+    items.extend([(k, k, "") for k in presets.keys()])
     return items
 
 def update_presets(self, context):
-    # 获取所有预设
-    presets = load_presets()
-    # 从 WindowManager 获取当前选中的预设名
-    preset_name = context.window_manager.presets
-
-    # 检查预设是否存在
-    if preset_name in presets: 
-        preset = presets[preset_name]
-
-        # 清除当前项
-        wm = context.window_manager
-        wm.flexmix_items.clear()
-
-        # 从预设加载项目
-        for item_name in preset["order"]:
+    # 获取WindowManager和当前选择的预设名
+    wm = context.window_manager
+    preset_name = wm.presets
+    
+    # 清除当前项
+    wm.flexmix_items.clear()
+    
+    # 如果选择"All"，则加载所有表情
+    if preset_name == "All":
+        # 遍历flexmix_dict中的所有键
+        for key in flexmix_dict.keys():
             item = wm.flexmix_items.add()
-            item.name = item_name
-            item.selected = preset["states"].get(item_name, False)
-
+            item.name = key
+            item.selected = False
+    else:
+        # 处理正常预设
+        presets = load_presets()
+        if preset_name in presets:
+            preset = presets[preset_name]
+            # 从预设加载项目
+            for item_name in preset["order"]:
+                if item_name in flexmix_dict:  # 只添加存在于flexmix_dict中的键
+                    item = wm.flexmix_items.add()
+                    item.name = item_name
+                    item.selected = preset["states"].get(item_name, False)
+    
+    # 确保至少有一个元素被选中
+    if len(wm.flexmix_items) > 0:
+        wm.flexmix_index = 0
 
 # 在窗口管理器中定义预设库
 bpy.types.WindowManager.presets = EnumProperty(
-    name="presets",
-    description="Preset List",
+    name=_("presets"),
+    description=_("Preset List"),
     items=get_presets_items,
     update=update_presets  # 添加更新函数
 )
@@ -541,14 +916,29 @@ bpy.types.WindowManager.presets = EnumProperty(
 # 保存预设的操作示例
 class L4D2_OT_SaveFlexPreset(bpy.types.Operator):
     bl_idname = "l4d2.save_flex_preset"
-    bl_label = "Save Preset"
+    bl_label = _("Save Preset")
 
-    preset_name: StringProperty(name="Preset Name")  # 新增的预设名输入框
+    preset_name: StringProperty(name=_("Preset Name"))  # 预设名输入框
 
     def invoke(self, context, event):
+        # 如果当前预设是"All"，则默认新预设名为空
+        if context.window_manager.presets == "All":
+            self.preset_name = ""
+        else:
+            # 否则使用当前预设名作为默认值
+            self.preset_name = context.window_manager.presets
+            
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
+        if not self.preset_name:
+            self.report({'ERROR'}, _("Preset name cannot be empty"))
+            return {'CANCELLED'}
+            
+        if self.preset_name == "All":
+            self.report({'ERROR'}, _("Cannot use reserved name 'All' as preset name"))
+            return {'CANCELLED'}
+            
         wm_items = context.window_manager.flexmix_items
         item_order = [item.name for item in wm_items if isinstance(item.name, (str, int, float, bool, type(None)))]
         item_states = {item.name: item.selected for item in wm_items if isinstance(item.selected, (str, int, float, bool, type(None)))}
@@ -556,15 +946,25 @@ class L4D2_OT_SaveFlexPreset(bpy.types.Operator):
         presets = load_presets()
         preset_content = {"order": item_order, "states": item_states}
         
+        # 检查是否覆盖已有预设
+        is_new = self.preset_name not in presets
         presets[self.preset_name] = preset_content  # 将预设名作为键，保存键值对
-        save_presets(presets) 
+        save_presets(presets)
+        
+        if is_new:
+            self.report({'INFO'}, f"{_('New preset')} '{self.preset_name}' {_('created')}")
+        else:
+            self.report({'INFO'}, f"{_('Preset')} '{self.preset_name}' {_('updated')}")
+            
+        # 设置当前预设为新保存的预设
+        context.window_manager.presets = self.preset_name
 
         return {'FINISHED'}
 
 class L4D2_OT_FlexSelectAction(bpy.types.Operator):
     bl_idname = 'l4d2.select_action'
-    bl_label = 'Manipulate the selection state of the list'
-    bl_description = 'Select All/Deselect All/Invert Selection'
+    bl_label = _('Manipulate the selection state of the list')
+    bl_description = _('Select All/Deselect All/Invert Selection')
     bl_options = {'UNDO'}
 
     action: StringProperty()
@@ -692,26 +1092,32 @@ def create_key(key_name, obj, shape_keys, used_as_final, auxiliary_keys, is_dire
 
 class L4D2_OT_CreateSelectedKey(bpy.types.Operator):
     bl_idname = "l4d2.create_selected_key"
-    bl_label = "Create Shape Keys"
-    bl_description = 'Create shape keys based on the key selected in the drop-down menu'
+    bl_label = _("Create Shape Keys")
+    bl_description = _('Create shape keys based on the key selected in the drop-down menu')
 
     def execute(self, context):
         obj = context.object
+        wm = context.window_manager
 
         # 检查是否有模型被选中
         if obj is None:
-            self.report({'ERROR'}, "需要选中模型再进行操作。")
+            self.report({'ERROR'}, _("Need to select a model before proceeding."))
             return {'CANCELLED'}
         # 检查选中的对象是否是网格对象
         if obj.type != 'MESH':
-            self.report({'ERROR'}, "选中的对象不是网格模型。请选中一个网格模型再进行操作。")
+            self.report({'ERROR'}, _("Selected object is not a mesh model. Please select a mesh model to proceed."))
             return {'CANCELLED'}
         shape_keys = obj.data.shape_keys
         if not shape_keys:
-            self.report({'ERROR'}, "对象上没有形态键数据。")
+            self.report({'ERROR'}, _("No shape key data on the object."))
+            return {'CANCELLED'}
+            
+        # 检查是否有选中的表情项目
+        if wm.flexmix_index < 0 or wm.flexmix_index >= len(wm.flexmix_items):
+            self.report({'ERROR'}, _("Please select an expression from the list first"))
             return {'CANCELLED'}
 
-        selected_key = context.scene.flex_keys_enum
+        selected_key = wm.flexmix_items[wm.flexmix_index].name
 
         used_as_final = set()
         auxiliary_keys = set()
@@ -723,90 +1129,39 @@ class L4D2_OT_CreateSelectedKey(bpy.types.Operator):
         
         add_shape_keys_to_scene_property(context, list(used_as_final))
 
-
         return {'FINISHED'}
 
 
 class L4D2_OT_AllCreate(bpy.types.Operator):
     bl_idname = "l4d2.all_create"
-    bl_label = ""
-    bl_description = 'Batch create shape keys in custom order'
+    bl_label = _("Batch Create")
+    bl_description = _('Batch create shape keys in custom order')
     
-    def invoke(self, context, event):
-        # 获取 WindowManager
-        wm = context.window_manager
-
-        # 清空现有的列表项
-        wm.flexmix_items.clear()
-
-        # 从flexmix_dict中填充列表项
-        for key in flexmix_dict.keys():
-            item = wm.flexmix_items.add()
-            item.name = key
-
-        # 重置当前选中的索引
-        wm.flexmix_index = 0
-
-        # 调用弹窗
-        return wm.invoke_props_dialog(self, width=250)
-
-    def draw(self, context):
-        wm = context.window_manager
-        layout = self.layout
-        row = layout.row()
-        left = row.column_flow(columns=1, align=True)
-        box = left.box().row()
-
-        # 创建全选/反选二合一的按钮和反选按钮
-        box_left = box.row(align=True)
-        # 创建全选/反选按钮
-        if wm.flexmix_items:
-            if all(item.selected for item in wm.flexmix_items):
-                op = box_left.operator('l4d2.select_action', text='', icon='CHECKBOX_HLT')
-                op.action = 'NONE'
-            else:
-                op = box_left.operator('l4d2.select_action', text='', icon='CHECKBOX_DEHLT')
-                op.action = 'ALL'
-                # 如果有选中的项,则显示反选按钮
-                if any(item.selected for item in wm.flexmix_items):
-                    op_inverse = box_left.operator('l4d2.select_action', text='', icon='UV_SYNC_SELECT')
-                    op_inverse.action = 'INVERSE'
-        box_right = box.row(align=False)
-        box_right.alignment = 'LEFT'
-        # 添加UIList控件
-        left.template_list("FLEXMIX_UL_List", "", wm, "flexmix_items", wm, "flexmix_index")
-        # 添加预设控件
-        row = layout.row()
-        row.prop(wm, "presets", text="Preset")
-        row.operator("l4d2.save_flex_preset", text="", icon="ADD")
-        #row.operator("l4d2.load_flex_preset", text="", icon="IMPORT")
-
-        # 绘制上下移操作按钮
-        col = layout.column(align=True)
-        col.operator("l4d2.flexmix_move_up", icon='TRIA_UP', text="")
-        col.operator("l4d2.flexmix_move_down", icon='TRIA_DOWN', text="")
-
     def execute(self, context):
         wm = context.window_manager
         obj = context.object
         # 检查是否有模型被选中
         if obj is None:
-            self.report({'ERROR'}, "需要选中模型再进行操作。")
+            self.report({'ERROR'}, _("Need to select a model before proceeding."))
             return {'CANCELLED'}
 
         # 检查选中的对象是否是网格对象
         if obj.type != 'MESH':
-            self.report({'ERROR'}, "选中的对象不是网格模型。请选中一个网格模型再进行操作。")
+            self.report({'ERROR'}, _("Selected object is not a mesh model. Please select a mesh model to proceed."))
             return {'CANCELLED'}
 
         shape_keys = obj.data.shape_keys
 
         if not shape_keys:
-            self.report({'ERROR'}, "对象上没有形态键数据。")
+            self.report({'ERROR'}, _("No shape key data on the object."))
             return {'CANCELLED'}
 
-        # 获取用户选择的目标键
+        # 获取用户选择的目标键（从主面板的 UIList 中）
         selected_keys = [item.name for item in wm.flexmix_items if item.selected] 
+        
+        if not selected_keys:
+            self.report({'ERROR'}, _("Please select the expressions to create from the main panel list first"))
+            return {'CANCELLED'}
 
         # 初始化最终使用和辅助键集合
         used_as_final = set()
@@ -820,20 +1175,21 @@ class L4D2_OT_AllCreate(bpy.types.Operator):
         # 将创建的键添加到场景属性中
         add_shape_keys_to_scene_property(context, list(used_as_final))
         print(f"标记为最终使用的键: {used_as_final}")
-
+        
+        self.report({'INFO'}, f"{_('Batch created')} {len(used_as_final)} {_('shape keys')}")
         return {'FINISHED'}
 
 
 class L4D2_OT_SortShapeKeys(bpy.types.Operator):
     bl_idname = "l4d2.sort_shape_keys"
-    bl_label = "Organize Shape Keys"
-    bl_description = 'Automatically delete useless shape keys and organize the shape key list\nBe sure to backup'
+    bl_label = _("Organize Shape Keys")
+    bl_description = _('Automatically delete useless shape keys and organize the shape key list\nBe sure to backup')
 
     def execute(self, context):
         obj = context.object
         # 检查选中的对象是否是网格对象
         if obj.type != 'MESH':
-            self.report({'ERROR'}, "选中的对象不是网格模型。请选中一个网格模型再进行操作。")
+            self.report({'ERROR'}, _("Selected object is not a mesh model. Please select a mesh model to proceed."))
             return {'CANCELLED'}
         # 检查基础形态键的名称并适应不同语言环境
         def check_basis_name():
@@ -845,7 +1201,7 @@ class L4D2_OT_SortShapeKeys(bpy.types.Operator):
         if "created_keys" in context.scene:
             created_keys = set(context.scene["created_keys"])
         else:
-            self.report({'ERROR'}, "没有找到跟踪信息，请先使用插件创建形态键。")
+            self.report({'ERROR'}, _("Tracking information not found. Please create shape keys using the plugin first."))
             return {'CANCELLED'}
 
         # 退出形态键锁定/编辑模式
@@ -871,13 +1227,72 @@ class L4D2_OT_SortShapeKeys(bpy.types.Operator):
                 bpy.context.object.active_shape_key_index = shape_keys.keys().index(key.name)  # 设为活动形态键
                 bpy.ops.object.shape_key_remove(all=False)  # 移除当前形态键
                 deleted_keys_count += 1  # 删除计数器增加         
-        self.report({'INFO'}, f"已删除 {deleted_keys_count} 个多余形态键。")
+        self.report({'INFO'}, f"{_('Deleted')} {deleted_keys_count} {_('redundant shape keys.')}")
 
         return {'FINISHED'}
 
+# 添加一个快速切换选择状态的操作符
+class L4D2_OT_ToggleItemSelection(bpy.types.Operator):
+    bl_idname = "l4d2.toggle_item_selection"
+    bl_label = _("Toggle Item Selection")
+    bl_description = _("Quickly toggle the selection state of the shape key")
+    bl_options = {'UNDO', 'INTERNAL'}
+    
+    index: IntProperty(description=_("Index of the item to toggle"))
+    
+    def execute(self, context):
+        wm = context.window_manager
+        if self.index >= 0 and self.index < len(wm.flexmix_items):
+            # 只更新活动索引，不改变复选框状态
+            wm.flexmix_index = self.index
+        return {'FINISHED'}
+
+class L4D2_OT_DeleteFlexPreset(bpy.types.Operator):
+    """Delete the currently selected preset"""
+    bl_idname = "l4d2.delete_flex_preset"
+    bl_label = _("Delete Preset")
+    bl_description = _("Delete the currently selected preset. This action cannot be undone.")
+    bl_options = {'REGISTER', 'UNDO'} # 添加UNDO选项，虽然文件操作本身不可撤销，但选择更改可以
+
+    @classmethod
+    def poll(cls, context):
+        # 仅当选中的不是"All"时才启用
+        return context.window_manager.presets != "All"
+
+    def invoke(self, context, event):
+        # 显示确认对话框
+        return context.window_manager.invoke_confirm(self, event)
+
+    def execute(self, context):
+        wm = context.window_manager
+        selected_preset = wm.presets
+
+        # 再次确认不是 "All" (虽然 poll 应已阻止)
+        if selected_preset == "All":
+            self.report({'ERROR'}, _("Cannot delete the 'All' preset."))
+            return {'CANCELLED'}
+
+        presets = load_presets()
+
+        # 检查预设是否存在于字典中
+        if selected_preset not in presets:
+            self.report({'ERROR'}, f"{_('Preset')} '{selected_preset}' {_('not found, cannot delete.')}")
+            # 可能是列表未及时刷新导致的陈旧数据，将选择重置为 'All'
+            wm.presets = "All"
+            return {'CANCELLED'}
+
+        # 删除预设
+        del presets[selected_preset]
+        save_presets(presets)
+
+        self.report({'INFO'}, f"{_('Preset')} '{selected_preset}' {_('has been deleted.')}")
+
+        # 删除后将选择重置为 "All" 以刷新列表
+        wm.presets = "All"
+
+        return {'FINISHED'}
 
 classes = [
-    L4D2_OT_StoreShapeKeys,
     L4D2_OT_AddToDict,
     L4D2_OT_DeleteFlexKeyPair,
     L4D2_OT_CreateSelectedKey,
@@ -892,15 +1307,86 @@ classes = [
     L4D2_OT_DeleteFlexKey,
     L4D2_OT_FlexSelectAction,
     L4D2_OT_SaveFlexPreset,
+    L4D2_OT_ToggleItemSelection,  # 添加新的操作符
+    L4D2_OT_DeleteFlexPreset,   # 注册新的删除预设操作符
+    L4D2_PT_ShapeKeyPanel,  # 确保面板也被注册
 ]
 
 def register():
     for cls in classes:
-        bpy.utils.register_class(cls)
-    bpy.types.WindowManager.flexmix_items = CollectionProperty(type=FlexmixItem)
-    bpy.types.WindowManager.flexmix_index = IntProperty() # 当前选中的列表项索引
-    load_presets()
+        try:
+            bpy.utils.register_class(cls)
+        except Exception as e:
+            # 抑制重复注册的错误消息
+            pass
+    
+    try:
+        # 注册新的捕获项类
+        bpy.utils.register_class(FlexCapturedKey)
+        
+        # 注册窗口管理器属性
+        bpy.types.WindowManager.flexmix_items = CollectionProperty(type=FlexmixItem)
+        bpy.types.WindowManager.flexmix_index = IntProperty(update=update_flexmix_index) # 当前选中的列表项索引
+        
+        # 注册场景属性
+        bpy.types.Scene.enable_flex_monitoring = BoolProperty(
+            name=_("Capture & Add Shape Keys to Expression Group"),
+            description=_("Automatically capture shape key changes and display below"),
+            default=False
+        )
+        
+        bpy.types.Scene.captured_shape_keys = CollectionProperty(
+            type=FlexCapturedKey,
+            name=_("Captured Shape Keys"),
+            description=_("List of currently captured non-zero shape keys")
+        )
+        
+        # 注册预设属性
+        if not hasattr(bpy.types.WindowManager, "presets"):
+            bpy.types.WindowManager.presets = EnumProperty(
+                name=_("presets"),
+                description=_("Preset List"),
+                items=get_presets_items,
+                update=update_presets  # 添加更新函数
+            )
+        
+        load_presets()
+        
+        # 加载表情数据
+        if not flexmix_dict:
+            load_flexmix_dict()
+        
+        # 添加依赖图更新处理器
+        bpy.app.handlers.depsgraph_update_post.append(depsgraph_update_post_handler)
+            
+    except Exception as e:
+        # 抑制属性注册错误的消息
+        print(f"注册属性时发生错误: {e}")
 
 def unregister():
+    # 移除依赖图更新处理器
+    if depsgraph_update_post_handler in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.remove(depsgraph_update_post_handler)
+    
+    try:
+        # 注销捕获项类
+        bpy.utils.unregister_class(FlexCapturedKey)
+    except Exception as e:
+        # 抑制错误
+        pass
+    
     for cls in classes:
-        bpy.utils.unregister_class(cls)
+        try:
+            bpy.utils.unregister_class(cls)
+        except Exception as e:
+            # 抑制注销错误的消息
+            pass
+    
+    try:
+        del bpy.types.WindowManager.flexmix_items
+        del bpy.types.WindowManager.flexmix_index
+        del bpy.types.Scene.enable_flex_monitoring
+        del bpy.types.Scene.captured_shape_keys
+    except Exception as e:
+        # 抑制删除属性错误的消息
+        pass

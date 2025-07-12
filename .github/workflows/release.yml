@@ -1,0 +1,78 @@
+name: Build and Release Blender Addon
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build_and_release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Run build script
+      run: python build_release.py
+
+    - name: Get addon name and version
+      id: get_info
+      run: |
+        ZIP_FILE=$(ls *.zip | head -n 1)
+        ADDON_NAME=$(echo $ZIP_FILE | sed -E 's/-(v[0-9]+\.[0-9]+\.[0-9]+)\.zip//')
+        ADDON_VERSION=$(echo $ZIP_FILE | sed -E 's/.*(v[0-9]+\.[0-9]+\.[0-9]+)\.zip/\1/')
+        echo "addon_name=$ADDON_NAME" >> $GITHUB_OUTPUT
+        echo "addon_version=$ADDON_VERSION" >> $GITHUB_OUTPUT
+        echo "zip_file=$ZIP_FILE" >> $GITHUB_OUTPUT
+
+    # ====================================================================
+    # ▼▼▼ 这是新添加并优化的步骤 ▼▼▼
+    # ====================================================================
+    - name: Get Release Notes from updatelog.txt
+      id: get_release_notes
+      run: |
+        TAG_VERSION="${{ github.ref_name }}" # 获取 Tag, e.g., v1.1.0
+        
+        # 使用 awk 提取特定版本块的内容
+        # RS 定义了记录分隔符，我们用 "====" 来分隔整个文件
+        # 当记录中包含我们的版本标签时 (e.g., "# v1.1.0")，设置标志 p=1
+        # 在下一个记录中 (p=1)，打印该记录（即更新日志内容），然后退出
+        # gsub 用于去除内容开头和结尾的空行，使格式更整洁
+        RELEASE_NOTES=$(awk -v RS="====================" -v tag="# ${TAG_VERSION}" '
+          p {gsub(/^\n+|\n+$/, ""); print; exit} 
+          $0 ~ tag {p=1}
+        ' updatelog.txt)
+
+        # 如果没有找到笔记，提供一个默认值
+        if [ -z "$RELEASE_NOTES" ]; then
+          RELEASE_NOTES="No specific release notes found for ${TAG_VERSION} in updatelog.txt."
+        fi
+
+        # 将多行字符串设置为步骤输出
+        echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+        echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+    # ====================================================================
+    # ▲▲▲ 新步骤结束 ▲▲▲
+    # ====================================================================
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: ${{ steps.get_info.outputs.zip_file }}
+        name: ${{ steps.get_info.outputs.addon_name }} ${{ steps.get_info.outputs.addon_version }}
+        tag_name: ${{ github.ref_name }}
+        # ▼▼▼ 在这里使用上一步的输出 ▼▼▼
+        body: |
+          ${{ steps.get_release_notes.outputs.release_notes }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

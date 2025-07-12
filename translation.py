@@ -20,21 +20,144 @@ data = {
         "View3D > Tool Shelf > 💝LCT": "3D视图 > 侧栏 > 💝LCT",
         "A plugin designed to enhance the efficiency of creating Left 4 Dead 2 character mods.": "这是一个旨在提升求生之路2人物Mod制作效率的插件。",
         
-        # 🛠️ General Tools
+        # 🛠️ Bone Tools
         "Valve Rig:": "官方骨架:",
         "Custom Rig:": "自定义骨架:",
 
         "Align Bone": "对齐骨骼",
         "Align bones by batch adding copy location constrains to the bones\nThe mechanism of bone alignment is based on the mapping dictionary\n1、Ensure the TPOSE is approximately consistent\n2、Make sure the name of the skeleton is the same as the name of the first level under the skeleton": "通过批量添加复制位置的骨骼约束来对骨\n对骨匹配机制来源于映射字典\n1、确保TPOSE近似一致\n2、确保骨架名和骨架下第一个层级名字一样",
 
+        # RiggingConfirmOperator translations
+        "Confirm Bone Alignment": "确认对骨操作",
+        "Confirm current mapping data and execute bone alignment operation": "确认当前映射数据并执行对骨操作",
+        "Filter": "过滤",
+        "Filter by bone name": "按骨骼名称过滤",
+        "Current Preset": "当前预设",
+        "Data Source": "数据来源",
+        "Preset File": "预设文件",
+        "Memory Data": "内存数据",
+        "Official Armature": "官方骨架",
+        "Custom Armature": "自定义骨架",
+        "Total Mappings": "总映射数",
+        "Bone Mapping and Axis Control": "骨骼映射及轴控制",
+        "Official Bone": "官方骨骼",
+        "Custom Bone": "自定义骨骼",
+        "Axis Control": "轴控制",
+        "Please adjust axis control settings and confirm to execute bone alignment": "请调整轴控制设置并确认后执行对骨操作",
+        "Failed to parse mapping data": "解析映射数据失败",
+        "Could not find armature objects": "无法找到骨架对象",
+        "Alignment completed, added": "对骨完成，共添加了",
+        "bone constraints": "个骨骼约束",
+
+        # RiggingConfirmItem translations
+        "Official bone name": "官方骨骼名称",
+        "Corresponding custom bone name": "对应的自定义骨骼名称",
+        "Use X axis constraint": "使用X轴约束",
+        "Use Y axis constraint": "使用Y轴约束",
+        "Use Z axis constraint": "使用Z轴约束",
+
+        # GraftingConfirmOperator translations
+        "Confirm Grafting Operation": "确认嫁接操作",
+        "Confirm current mapping data and execute bone grafting operation": "确认当前映射数据并执行骨骼嫁接操作",
+        "Preview Mode": "预览模式",
+        "Selected Bones": "选中骨骼",
+        "Only display grafting relationships for selected bones": "仅显示选中骨骼的嫁接关系",
+        "All Bones": "所有骨骼",
+        "Display grafting relationships for all bones": "显示所有骨骼的嫁接关系",
+        "Target Armature": "目标骨架",
+        "Official Mapping Bones": "官方映射骨骼数",
+        "Common Mapping Bones": "通用映射骨骼数",
+        "Unique Mapping Bones": "独立映射骨骼数",
+        "Selected Bones Count": "已选中骨骼数",
+        "Grafting Mapping Relationships": "嫁接映射关系",
+        "Total": "共",
+        "Parent Bone": "父骨骼",
+        "Child Bone": "子骨骼",
+        "Processing Flow": "处理流程",
+        "Process": "处理",
+        "selected non-official bones": "个选中的非官方骨骼",
+        "Process all non-official bones": "处理所有非官方骨骼",
+        "Set parent-child relationships based on the above mappings": "根据上述映射设置父子关系",
+        "Please confirm the above information and click OK to execute bone grafting operation": "请确认以上信息无误后点击确定执行骨骼嫁接操作",
+        "Armature object not found or not an armature type": "未找到骨架对象或不是骨架类型",
+        "No bone mapping relationships found that match the criteria": "未找到任何符合条件的骨骼映射关系",
+        "Armature object not found": "未找到骨架对象",
+        "Processed": "已处理",
+        "selected bones": "个选中骨骼",
+        "bones": "个骨骼",
+        "Bone grafting completed": "骨骼嫁接完成",
+        "No suitable bones found for grafting, please check bone positions and mapping relationships": "未找到合适的骨骼进行嫁接，请检查骨骼位置和映射关系",
+
         "Graft Bone": "嫁接骨骼",
         "Automatically set the parent-child level of bones based on bone mapping relationships": "根据骨骼映射关系自动设置骨骼的父子级",
+        # GraftingOperator translations
+        "Failed to load mapping data": "映射数据加载失败",
+        "Armature object not selected or selected object is not an armature type": "未选中骨架对象或选中的不是骨架类型",
+        "No available bone mapping relationships, grafting may be incomplete": "没有可用的骨骼映射关系，嫁接可能不完整",
+        "Failed to serialize mapping data": "序列化映射数据失败",
+
 
         "Rename Bone": "重命名骨骼",
         "Rename custom bone names to Valve bone names based on bone mapping relationships": "根据骨骼映射关系把自定义骨骼名字重命名为Valve官方骨骼名字",
 
+        
+        # RenameBonesOperator translations
+        "Target Name": "目标名称",
+        "The new name to rename the bone to": "将骨骼重命名为的新名称",
+        "Current Name": "当前名称",
+        "The current bone name to be renamed": "将被重命名的当前骨骼名称",
+        "Source": "来源",
+        "Source of the mapping relationship": "映射关系的来源",
+        "Confirm Bone Renaming": "确认骨骼重命名",
+        "Renaming Mapping Relationships": "重命名映射关系",
+        "Operation Process:": "操作流程：",
+        "Load mapping relationships": "加载映射关系",
+        "Match custom bones to official bones": "匹配自定义骨骼到官方骨骼",
+        "Rename custom bones to official names": "将自定义骨骼重命名为官方名称",
+        "No bone mapping relationships found that match the current armature": "未找到与当前骨架匹配的骨骼映射关系",
+        "Failed to parse mapping data": "解析映射数据失败",
+        "Renamed": "已重命名",
+        "bones successfully": "个骨骼成功",
+        "No bones were renamed, please check the mapping relationships": "没有骨骼被重命名，请检查映射关系",
+
         "Unbind Preserve Shape": "骨骼断绑保形",
         "Maintain shape and transformation when breaking bone parent-child relationships": "在断开骨骼父子关系时保持其形状和变换",
+
+        # New translations from bone_modify.py
+        "Failed to load mapping data": "映射数据加载失败",
+        "Please select the official and custom armatures first": "请先选择官方骨架和自定义骨架",
+        "Custom Bones": "自定义骨骼",
+        "No custom bones": "没有自定义骨骼",
+        "Select preferred bone:": "选择首选骨骼:",
+        "Add new bone mapping relationship": "添加新的骨骼映射关系",
+        "Apply changes in the current UI list to the preset file": "将当前UI列表的更改应用到预设文件",
+        "Set the selected bone as preferred": "将选中的骨骼设为首选项",
+        "Add a new custom bone": "添加新的自定义骨骼",
+        "Bone Name": "骨骼名称",
+        "Select from Armature": "从骨架中选择",
+        "Manual Input": "手动输入",
+        "Add Mode": "添加模式",
+        "Bone": "骨骼",
+        "Please select an armature": "请选择一个骨架",
+        "Bone name cannot be empty!": "骨骼名称不能为空!",
+        "Bone": "骨骼",
+        "already exists!": "已存在!",
+        "Remove the preferred custom bone": "删除首选的自定义骨骼",
+        "Remove the current mapping entry": "删除当前映射条目",
+        "Error when deleting UI list entry": "删除UI列表条目时发生错误",
+        "Failed to delete mapping data": "删除映射数据失败",
+        "No correct bones selected or not in pose mode": "没有选择正确的骨骼或者不在姿态模式",
+        "Official bone name (parent)": "官方骨骼名称(父)",
+        "Custom bone name (child)": "自定义骨骼名称(子)",
+        "Whether the bone is selected": "是否被选中",
+        "Official bone name": "官方骨骼名称",
+        "Common bone name": "通用骨骼名称",
+        "Custom bones list": "自定义骨骼列表",
+        "Index of the preferred bone in the list": "首选骨骼在列表中的索引",
+        "Source tab of the mapping": "映射的来源标签页",
+        "Use X axis constraint": "使用X轴约束",
+        "Use Y axis constraint": "使用Y轴约束",
+        "Use Z axis constraint": "使用Z轴约束",
 
         "Remove Bone Constraint": "移除骨骼约束",
         "Bulk Remove Constraints from Selected Bones": "批量移除所选骨骼的约束",
@@ -57,6 +180,139 @@ data = {
         "Dictionary Value": "字典值",
         "Display all values for the selected dictionary key": "显示所选字典键的所有值",
 
+        # 添加新的顶点组相关翻译
+        "Add from Vertex Groups": "从顶点组添加",
+        "Add an empty vertex group selector to the list": "添加一个空的顶点组选择器到列表",
+        "No mesh objects with vertex groups found": "未找到包含顶点组的网格物体",
+        "Target object has no vertex groups": "目标物体没有顶点组",
+        "The name of the vertex group": "顶点组的名称",
+        "Actual Vertex Group": "实际顶点组",
+        "The actual selected vertex group": "实际选中的顶点组",
+
+        # New translations from bone_modify.py function calls
+        "Failed to load preset data": "无法加载预设数据",
+        "Preset": "预设",
+        "already exists!": "已存在!",
+        "created successfully!": "创建成功!",
+        "Failed to create preset": "创建预设失败",
+        "does not exist!": "不存在!",
+        "has been deleted!": "已删除!",
+        "Failed to delete preset": "删除预设失败",
+        "Failed to load preset": "加载预设失败",
+        "Failed to update UI list": "更新UI列表失败",
+        "loaded successfully!": "加载成功!",
+        "loaded": "已加载",
+        "Selected file does not exist!": "选择的文件不存在!",
+        "Invalid preset file format!": "无效的预设文件格式!",
+        "imported successfully!": "导入成功!",
+        "Failed to import preset": "导入预设失败",
+        "exported successfully!": "导出成功!",
+        "Failed to export preset": "导出预设失败",
+        "Invalid bone index!": "无效的骨骼索引!",
+        "Mapping changes applied and saved to preset": "映射更改已应用并保存到预设",
+        "Mapping changes applied but failed to save to preset": "映射更改已应用，但保存到预设失败",
+        "Failed to serialize mapping data": "序列化映射数据失败",
+
+        # Additional translations for missed items
+        "Select preset and apply": "选择预设并应用",
+        "Preset": "预设",
+        "Select preset to use": "选择要使用的预设",
+        "None": "无", 
+        "Active Preset": "活动预设",
+        "Current active preset": "当前活动的预设",
+        
+        # Additional error messages
+        "Failed to save UI list to temp_data": "保存UI列表到temp_data失败",
+        "Failed to get temp_data": "获取temp_data失败",
+        "Failed to delete custom bone": "删除自定义骨骼失败",
+
+        # Additional missing translations
+        "All Mappings": "全部映射",
+        "Unique Mappings": "独立映射",
+        "Common Mappings": "通用映射",
+        "Axis Control": "轴控制",
+        "Add New Mapping": "添加新映射",
+        "Apply Changes": "应用更改",     
+        
+        # weights.py UI Elements
+        "Weight Editing Tools": "权重编辑工具",
+        "Vertex Group Editing": "顶点组编辑", # Also used as BoolProperty name/desc
+        "Target Object:": "目标物体:",
+        "Add from Selected Bones": "从选中骨骼添加", # Also used as Operator label
+        "Reset": "重置",
+        "Merge Vertex Groups": "合并顶点组",
+        "Even Weight Transfer": "均分权重",
+        "Split Mode:": "分割模式:",
+        "X Axis": "X轴", # Also used in EnumProperty item
+        "Y Axis": "Y轴", # Also used in EnumProperty item
+        "Z Axis": "Z轴", # Also used in EnumProperty item
+        "Custom": "自定义", # Also used in EnumProperty item
+        "Please draw the split line first": "请先绘制分割线",
+        "Execute Bisect Weight": "执行二分权重",
+        "Please add vertex groups first": "请先添加顶点组",
+        "Select Target Object": "选择目标物体",
+        "Select the target object to process:": "选择要处理的目标物体:",
+        "Select Object Item": "选择物体项",
+        "Set Target Object": "设置目标物体",
+        "Clear Vertex Group List": "清空顶点组列表",
+        "Clear the current vertex group list and reset target object selection for switching to new armatures and objects": "清空当前的顶点组列表并重置目标物体选择，便于切换到新的骨架和物体",
+        "Vertex group list and target object selection cleared": "已清空顶点组列表和目标物体选择",
+        "Remove Vertex Group": "移除顶点组", # Also used as Operator label
+        "Remove this vertex group from the list": "从列表中移除此顶点组",
+        "Process Vertex Groups": "处理顶点组",
+        "Merge: Merge weights of subsequent groups into the first group.\nEven: Evenly distribute weights of the first group to subsequent groups.\nBisect: Distribute the first group's weight to the 2nd and 3rd groups based on the selected axis or custom line.": "合并: 合并后续组权重到首个组。\n均分: 均分首个组权重给后续组。\n二分: 根据选择的方向或自定义线分配首组权重给第2、3组。",
+        "Target object not set": "未设置目标物体",
+        "Target object is invalid or not a mesh object": "目标物体无效或不是网格物体",
+        "Please select at least two vertex groups": "请至少选择两个顶点组",
+        "Bisect weight requires at least three vertex groups selected": "二分权重需要至少选择三个顶点组",
+        "Vertex group merge completed": "顶点组合并完成",
+        "Weight distribution completed": "权重均匀分配完成",
+        "One or more specified vertex groups do not exist": "一个或多个指定的顶点组不存在",
+        "No vertices found affected by the middle vertex group": "没有找到中间顶点组影响的顶点",
+        "Bisect weight completed using": "使用", # Part of f-string
+        "axis": "轴完成二分权重", # Part of f-string
+        "Blend Factor:": "混合因子:", # Part of f-string, also FloatProperty name
+        "Bisect weight completed using custom split line": "使用自定义分割线完成二分权重", # Part of f-string
+        "Draw Split Line": "绘制分割线",
+        "Draw a split line in the 3D view for custom weight splitting direction": "在3D视图中绘制分割线，用于自定义权重分割方向",
+        "This tool must be used in the 3D View": "必须在3D视图中使用此工具",
+        "Click to set the start point, move, then click again to set the end point": "单击设置分割线起点，移动后再次单击设置终点",
+        "Cancelled drawing split line": "取消绘制分割线",
+        "Start point set, move mouse and click again to set end point": "起点已设置，移动鼠标并再次单击设置终点",
+        "Split line set": "分割线已设置",
+        "Set Split Mode": "设置分割模式",
+        "Set the splitting mode for bisect weight": "设置二分权重的分割模式",
+
+        # weights.py Operator Labels/Descriptions
+        "Automatically add corresponding vertex groups from bones selected in pose mode": "从姿势模式下选中的骨骼自动添加对应的顶点组",
+        "Please select bones in Pose Mode": "请在姿势模式下选择骨骼",
+        "No bones selected": "未选择任何骨骼",
+        "Could not find mesh objects associated with the armature": "未找到与骨架关联的网格物体",
+        "Added": "已添加", # Part of f-string
+        "vertex groups": "个顶点组", # Part of f-string
+        "bone names do not exist in vertex groups": "个骨骼名称在顶点组中不存在", # Part of f-string
+
+        # weights.py Property Names/Descriptions
+        "Vertex Group Name": "顶点组名称",
+        "Target Mesh Object": "目标网格物体",
+        "Target mesh object for adding vertex groups": "用于添加顶点组的目标网格物体",
+
+        # "Vertex Group Editing": "顶点组编辑", # Defined above
+        "Smoothness of the transition area for bisect weight (0=Hard Split, 1=Max Smoothness)": "二分权重时过渡区域的平滑度 (0=硬分割, 1=最大平滑)",
+        "Split Line Start": "分割线起点",
+        "Start point of the custom split line": "自定义分割线的起点",
+        "Split Line End": "分割线终点",
+        "End point of the custom split line": "自定义分割线的终点",
+        "Use Custom Split Line": "使用自定义分割线",
+        "When enabled, bisect weight uses the custom split line instead of an axis": "启用后二分权重将使用自定义分割线而非轴向",
+        "Split Mode": "分割模式", # Also used as EnumProperty name
+        "Select the axis or method for weight splitting": "选择权重分割的轴向或方式",
+        "Split weights along the X axis": "沿X轴分割权重", # EnumProperty item description
+        "Split weights along the Y axis": "沿Y轴分割权重", # EnumProperty item description
+        "Split weights along the Z axis": "沿Z轴分割权重", # EnumProperty item description
+        "Use custom split line": "使用自定义分割线", # EnumProperty item description
+
+        # bone_modify.py UI Elements
         "Bone Quick Select": "骨骼快捷选择",
         "Select bones according to the bone set defined in the dictionary": "根据定义好的骨骼集合选择骨骼",
         "Valve Bone": "官方骨骼",
@@ -68,22 +324,7 @@ data = {
         "Select by pattern": "按名称选择",
         "By default, turn off case distinction and turn on merge selection": "默认关闭大小写区分和打开并入选择",
 
-        "Vertex Group Editing": "顶点组编辑",
-
-
-        "Add Vertex Group": "添加顶点组",
-        "Add a vertex group field to select the vertex group to be processed by the current model": "增加一个顶点组栏位，用来选择当前模型需要处理的顶点组",
-
-        "Remove Vertex Group": "删除顶点组",
-        "Remove this vertex group field": "删除这个顶点组栏位",
-
-        "Process Vertex Group": "处理顶点组",
-        "The following functions are performed only on the vertex groups within the columns created with the + button:\nMerge vertex groups: Merge the weights of the vertex groups after the first column into the first column vertex group and delete these vertex groups(careful).\nEven weight: Evenly distribute the weights of the first column vertex group to the other column vertex groups.\nBisect weight: Using the X-pos of the vertices in the first column vertex group as a reference, divide the weights to the left and right. Assign the weights of the left half to the vertex group in the second column, and the weights of the right half to the vertex group in the third column": "以下功能仅针对使用+号创建的栏内顶点组进行操作\n合并顶点组：把第一栏以后的顶点组权重合并到第一栏顶点组中，并删除这些顶点组谨慎操作\n均匀权重：把第一栏顶点组的权重均匀分配给其他栏顶点组\n二分权重：以第一栏顶点组内顶点X坐标为参照，左右划分权重，左半边权重划给第二栏顶点组，右半边权重划给第三栏顶点组",
-        "Merge vertex groups": "合并顶点组",
-        "Even weight": "均匀权重",
-        "Bisect weight": "二分权重",
-        
-
+        # VRD Tools
         "VRD Action Management:": "VRD动作管理",
         "Add New Project": "添加VRD动作项目",
         "Add new project to the project list": "添加新的项目到项目列表",
@@ -166,24 +407,103 @@ data = {
         "Parameter Selection": "参数选择",
 
         # 😇 Flex Tools
+        "Name": "名称",
+        "Value": "值",
+        "The shape key name": "形态键的名称",
+        "The shape key value": "形态键的值",
         "Shape Keys Capture": "形态键捕捉",
         "Capture Non-Zero Deformation Shape Keys": "捕捉所有变形数值非零的形态键",
         "Add to Dict": "添加到字典",
         "Add the captured shape key values into the currently selected dictionary key": "将捕捉到的形态键值添加到当前选定的字典键中",
+        "Please select an expression from the list first": "请先在列表中选择一个表情",
+        "No active shape keys detected, please adjust shape key values in the Shape Keys panel first": "没有检测到活动形态键，请先在形态键面板调整形态键值",
+        "Shape keys added:": "形态键添加:", # f-string part
+        "No valid expression key selected": "没有选中有效的表情键",
+        "Invalid group index, please check the dropdown menu.": "无效的组索引,请检查下拉菜单。",
+        "Selected key does not exist in the dictionary.": "选择的键不存在于字典中。",
+        "Shape key": "形态键", # f-string part
+        "data deleted": "数据已删除", # f-string part
         "Organize Shape Keys": "整理形态键列表",
         "Automatically delete useless shape keys and organize the shape key list\nBe sure to backup": "自动删除无用形态键整理形态键列表\n注意备份",
-        "Batch Create": "批量创建",
-        "Batch create shape keys in custom order": "批量自选顺序创建形态键",
         "Create Shape Keys": "形态键创建",
         "Create shape keys based on the key selected in the drop-down menu": "根据下拉菜单选择的键创建形态键",
         "Add New Key": "添加新键",
         "Add a new key to the dictionary": "添加一个新的键到字典中",
+        "Note": "备注",
+        "Key name cannot be empty!": "键名称不能为空!",
+        "Key": "键", # f-string part
+        "already exists!": "已经存在!", # f-string part
+        "New key added:": "已添加新键", # f-string part
         "Delete Key-Value Pair": "删除键值对",
         "Rename Key": "重命名键",
         "Rename the key currently selected in the drop-down menu": "重命名当前下拉菜单中选中的键",
+        "No key selected": "没有选中任何键",
+        "has been renamed to": "已重命名为", # f-string part
+        "Note for key": "键的备注", # f-string part
+        "has been changed.": "已更改。", # f-string part
+        "renamed to": "重命名为", # f-string part
+        "and note changed.": "且备注已更改。", # f-string part
         "Delete Key": "删除键",
         "Delete the currently selected key and its key-value pair": "删除当前选中的键及其键值对",
+        "Key not found or not selected": "没有找到键或键未选中",
+        "and its data have been deleted": "及其数据已删除", # f-string part
+        "L4D2 ShapeKey Tools": "L4D2 形态键工具",
+        "Capture & Add Shape Keys to Expression Group": "捕获&添加形态键到表情组合",
+        "Current Active Shape Keys": "当前活动形态键",
+        "Add to": "添加到", # f-string part
+        "Please select an expression first": "请先选择一个表情",
+        "No active shape keys detected": "没有检测到活动的形态键",
+        "Please adjust shape key values in the Shape Keys panel": "请在形态键面板调整形态键值",
+        "Preset:": "预设:",
+        "Selected:": "选中项:", # f-string part
+        "Note: None": "备注: 无",
+        "No shape key combinations defined": "未定义形态键组合",
+        "Combination": "组合", # f-string part
+        "Select a flex key from the list": "从列表中选择一个表情键",
+        "Search": "搜索",
+        "Filter items by name": "按名称过滤项目",
+        "Invert Filter": "反转过滤",
+        "Invert filter": "反转过滤器",
+        "Move Up": "上移",
+        "Cannot move: No item selected": "无法移动：未选择任何项目",
+        "Cannot move further up: Item already at the top": "无法继续向上移动：已有项目在顶部",
+        "Move Down": "下移",
+        "Cannot move further down: Item already at the bottom": "无法继续向下移动：已有项目在底部",
+        "All Flexes": "所有表情",
+        "Show all expressions, do not use preset filtering": "显示所有表情，不使用预设过滤",
+        "presets": "预设",
+        "Preset List": "预设列表",
+        "Save Preset": "保存预设",
+        "Preset Name": "预设名称",
+        "Preset name cannot be empty": "预设名称不能为空",
+        "Cannot use reserved name 'All' as preset name": "不能使用保留名称 'All' 作为预设名",
+        "New preset": "新预设", # f-string part
+        "created": "已创建", # f-string part
+        "Preset": "预设", # f-string part & normal
+        "updated": "已更新", # f-string part
+        "Manipulate the selection state of the list": "操作列表的选中状态",
         "Select All/Deselect All/Invert Selection": "全选/取消全选/反选",
+        "Need to select a model before proceeding.": "需要选中模型再进行操作。",
+        "Selected object is not a mesh model. Please select a mesh model to proceed.": "选中的对象不是网格模型。请选中一个网格模型再进行操作。",
+        "No shape key data on the object.": "对象上没有形态键数据。",
+        "Please select the expressions to create from the main panel list first": "请先在主面板的列表中选择要创建的表情",
+        "Batch created": "批量创建了", # f-string part
+        "shape keys": "个形态键", # f-string part
+        "Tracking information not found. Please create shape keys using the plugin first.": "没有找到跟踪信息，请先使用插件创建形态键。",
+        "Deleted": "已删除", # f-string part
+        "redundant shape keys.": "个多余形态键。", # f-string part
+        "Toggle Item Selection": "切换项目选择",
+        "Quickly toggle the selection state of the shape key": "快速切换形态键选择状态",
+        "Index of the item to toggle": "要切换的项目索引",
+        "Delete Preset": "删除预设",
+        "Delete the currently selected preset. This action cannot be undone.": "删除当前选中的预设。此操作无法撤销。",
+        "Cannot delete the 'All' preset.": "不能删除 'All' 预设。",
+        "not found, cannot delete.": "未找到，无法删除。", # f-string part
+        "has been deleted.": "已删除。", # f-string part
+        "Automatically capture shape key changes and display below": "自动捕获形态键变化并在下方显示",
+        "Captured Shape Keys": "捕获的形态键",
+        "List of currently captured non-zero shape keys": "当前捕获的非零形态键列表",
+
         # Update related translations
         "Check for updates": "检查更新",
         "Update Available!": "有可用更新！",
@@ -195,4 +515,19 @@ data = {
         "You are using the latest version": "您正在使用最新版本",
         "New version available:": "新版本可用：",
         "Download": "下载",
+
+        # 添加批量创建形态键UI的翻译
+        "Batch Create": "批量创建形态键",
+        "Batch Create Shape Keys": "批量创建形态键",
+        "Batch create shape keys in custom order": "批量自选顺序创建形态键",
+        "Search": "搜索",
+        "Filter shape keys by name": "按名称过滤形态键",
+        "Selection:": "选择操作:",
+        "Select All": "全选",
+        "Deselect All": "取消选择",
+        "Invert": "反选",
+        "Preset Management:": "预设管理:",
+        "Note:": "备注:",
+        "Tip: Select shape keys to create and click OK": "提示: 选择要创建的形态键后点击确定",
+        "selected": "个已选择",
 }

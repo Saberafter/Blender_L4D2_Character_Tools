@@ -17,7 +17,7 @@
 bl_info = {
     "name": "💝L4D2 Character Tools",
     "author": "Merami",
-    "version": (1, 0, 6),
+    "version": (1, 1, 0),
     "blender": (2, 80, 0),
     "location": "View3D > Tool Shelf > 💝LCT",
     "description": "A plugin designed to enhance the efficiency of creating Left 4 Dead 2 character mods.",
@@ -27,17 +27,24 @@ bl_info = {
 }
 
 import bpy
+import logging
+import sys
 from . import vrd
 from . import weights
 from . import jigglebone
 from . import flex
 from . import bone_modify
-from . import weights
+# from . import bone_mapping
 from .resources import bone_dict
 import requests
 import json
 from threading import Thread
 from bpy.app.translations import pgettext_iface as _
+
+# 重定向Blender控制台输出的类
+class NullWriter:
+    def write(self, string):
+        pass
 
 class UpdateChecker:
     def __init__(self):
@@ -203,22 +210,16 @@ from . import translation
 lct_zh_CN = TranslationHelper('lct_zh_CN', translation.data)
 lct_zh_HANS = TranslationHelper('lct_zh_HANS', translation.data, lang='zh_HANS')
 
-class L4D2_PT_GeneralTools(bpy.types.Panel):
-    bl_label = "🛠️ General Tools"
+class L4D2_PT_BoneTools(bpy.types.Panel):
+    bl_label = "🦴 Bone Tools"
     bl_idname = "L4D2_PT_CharacterToolsPanel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "💝LCT"
-
+    bl_options = {'DEFAULT_CLOSED'} 
+    
     def draw(self, context):
         layout = self.layout
-        # 添加更新检查按钮
-        row = layout.row()
-        row.operator("l4d2.check_update", icon="FILE_REFRESH")
-        if update_checker.has_update:
-            row = layout.row()
-            row.label(text=_("New version available:") + f" {'.'.join(map(str, update_checker.latest_version))}")
-            row.operator("wm.url_open", text=_("Download"), icon="URL").url = update_checker.download_url
         scene = context.scene
         # 使用 split 布局类型调整左右列的宽度比例
         split = layout.split(factor=0.25)
@@ -229,26 +230,55 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
         col_left.label(text="Custom Rig:")
         # 下拉框
         col_right.prop(scene, "Valve_Armature", text="", icon="ARMATURE_DATA")
-
         col_right.prop(scene, "Custom_Armature", text="", icon="MOD_ARMATURE")
-
 
         bone_modify.L4D2_PT_BoneModifyPanel.draw(self, context)
 
         row = layout.row()
         row.operator("l4d2.remove_constraint", text="Remove All Constraint", icon="X").action = 'REMOVE_ALL'
-        # row.operator("l4d2.remove_constraint", text="Cancel Y RotationConstraint", icon="X").action = 'REMOVE_ROT_Y'
         row.operator("l4d2.remove_constraint", text="Remove TransformConstraint", icon="X").action = 'REMOVE_TRANS'
+        
         row = layout.row()
         row.operator("l4d2.rename_bones_operator", icon="GREASEPENCIL")
         row = layout.row()
         row.operator("l4d2.unbind_keep_shape", icon="CONSTRAINT_BONE")
 
+        # 骨骼映射管理折叠面板
         layout.prop(context.scene, "bone_mapping_management", text="Bone Mapping Management", icon="TRIA_DOWN" if context.scene.bone_mapping_management else "TRIA_RIGHT")
 
+        # 如果展开，则显示骨骼映射UI
         if context.scene.bone_mapping_management:
-            bone_modify.VIEW3D_PT_CustomBoneDictManager.draw(self, context)
-        
+            box = layout.box()
+            col = box.column()
+            
+            # 预设操作按钮
+            row = col.row(align=True)
+            
+            # 使用当前预设名称作为下拉菜单的显示文本
+            row.operator_menu_enum("l4d2.select_preset", "preset_name", text=context.scene.active_preset_name)
+            
+            # 预设管理按钮
+            row.operator("l4d2.create_preset", icon="ADD", text="").preset_name = context.scene.active_preset_name
+            row.operator("l4d2.import_preset", icon="IMPORT", text="")
+            row.operator("l4d2.export_preset", icon="EXPORT", text="").preset_name = context.scene.active_preset_name
+            row.operator("l4d2.delete_preset", icon="X", text="").preset_name = context.scene.active_preset_name
+            
+            col.separator()
+            
+            # 标签页
+            row = col.row()
+            row.prop(context.scene, "mapping_ui_tab", expand=True)
+            
+            # UI列表
+            row = col.row()
+            row.template_list("BONE_UL_MappingList", "", context.scene, "mapping_list",
+                             context.scene, "mapping_list_index", rows=5)
+            
+            # 底部按钮
+            row = col.row()
+            row.operator("mapping.add_new_mapping")
+            row.operator("mapping.apply_changes")
+
         weights.L4D2_PT_WeightsPanel.draw(self, context)
         
         row = layout.row()
@@ -263,8 +293,24 @@ class L4D2_PT_GeneralTools(bpy.types.Panel):
         else:
             row = layout.row()
             row.operator("select.by_pattern")
-            
 
+class L4D2_PT_UtilityTools(bpy.types.Panel):
+    bl_label = "⚙️ Utilities"
+    bl_idname = "L4D2_PT_UtilityToolsPanel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "💝LCT"
+    bl_options = {'DEFAULT_CLOSED'} 
+    
+    def draw(self, context):
+        layout = self.layout
+        # 添加更新检查按钮
+        row = layout.row()
+        row.operator("l4d2.check_update", icon="FILE_REFRESH")
+        if update_checker.has_update:
+            row = layout.row()
+            row.label(text=_("New version available:") + f" {'.'.join(map(str, update_checker.latest_version))}")
+            row.operator("wm.url_open", text=_("Download"), icon="URL").url = update_checker.download_url
 
 class L4D2_PT_VRDTools(bpy.types.Panel):
     bl_label = "🕹️ VRD Tools"
@@ -307,43 +353,86 @@ class L4D2_OT_RemoveConstraint(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
+        # 只检查是否有活动对象且是骨架
         return (context.active_object is not None and
-                context.active_object.type == 'ARMATURE' and
-                context.active_object.mode == 'POSE')
+                context.active_object.type == 'ARMATURE')
 
     def execute(self, context):
-        # 根据action的值，调用不同的函数
-        if self.action == 'REMOVE_ALL':
-            return self.remove_all_constraints(context)
-        elif self.action == 'REMOVE_ROT_Y':
-            return self.remove_rotation_constraint_y(context)
-        elif self.action == 'REMOVE_TRANS':
-            return self.remove_transform_constraints(context)
-
-    def remove_all_constraints(self, context):
         armature = context.active_object
+        
+        # 记录原始模式
+        original_mode = armature.mode
+        
+        # 切换到姿态模式
+        if original_mode != 'POSE':
+            bpy.ops.object.mode_set(mode='POSE')
+        
+        # 根据action类型执行不同操作
+        try:
+            if self.action == 'REMOVE_ALL':
+                # 检查是否有约束
+                has_constraints = False
+                for bone in armature.pose.bones:
+                    if bone.constraints:
+                        has_constraints = True
+                        break
+                        
+                if not has_constraints:
+                    self.report({'ERROR'}, "没有找到约束")
+                    return {'CANCELLED'}
+                    
+                # 移除所有约束
+                count = self._remove_all_constraints(armature)
+                self.report({'INFO'}, f"已移除 {count} 个约束")
+                
+            elif self.action == 'REMOVE_TRANS':
+                # 检查是否有选中的骨骼
+                if not context.selected_pose_bones:
+                    self.report({'ERROR'}, "未选择骨骼")
+                    return {'CANCELLED'}
+                    
+                # 检查选中的骨骼是否有变换约束
+                has_transform = False
+                for bone in context.selected_pose_bones:
+                    if any(c.type == 'TRANSFORM' for c in bone.constraints):
+                        has_transform = True
+                        break
+                        
+                if not has_transform:
+                    self.report({'ERROR'}, "没有找到约束")
+                    return {'CANCELLED'}
+                    
+                # 移除变换约束
+                count = self._remove_transform_constraints(context.selected_pose_bones)
+                self.report({'INFO'}, f"已移除 {count} 个变换约束")
+                
+            return {'FINISHED'}
+                
+        finally:
+            # 无论操作成功还是失败，都恢复到原始模式
+            if original_mode != 'POSE':
+                bpy.ops.object.mode_set(mode=original_mode)
+            else:
+                bpy.ops.object.mode_set(mode='OBJECT')  # 姿态模式特殊处理为返回物体模式
+    
+    def _remove_all_constraints(self, armature):
+        """移除所有约束并返回移除数量"""
+        count = 0
         for bone in armature.pose.bones:
-            for constraint in bone.constraints:
+            for constraint in bone.constraints[:]:
                 bone.constraints.remove(constraint)
-        return {'FINISHED'}
+                count += 1
+        return count
 
-    def remove_rotation_constraint_y(self, context):
-        obj = context.object
-        for bone in context.selected_pose_bones:
-            for constraint in bone.constraints:
-                if constraint.type == 'COPY_ROTATION':
-                    constraint.use_y = False
-                    print("已移除骨骼", bone.name, "的旋转约束中的Y轴约束")
-        return {'FINISHED'}
-
-    def remove_transform_constraints(self, context):
-        obj = context.object
-        for bone in context.selected_pose_bones:
+    def _remove_transform_constraints(self, selected_bones):
+        """移除选中骨骼的变换约束并返回移除数量"""
+        count = 0
+        for bone in selected_bones:
             to_be_removed = [c for c in bone.constraints if c.type == 'TRANSFORM']
             for constraint in to_be_removed:
                 bone.constraints.remove(constraint)
-                print("已删除骨骼", bone.name, "的变换约束")
-        return {'FINISHED'}
+                count += 1
+        return count
 
 class L4D2_OT_SelectBones(bpy.types.Operator):
     bl_idname = "l4d2.select_bones"
@@ -423,10 +512,11 @@ class L4D2_MT_SelectBonesMenu(bpy.types.Menu):
 
 
 classes = [
-    L4D2_PT_GeneralTools,
+    L4D2_PT_BoneTools,
     L4D2_PT_VRDTools,
     L4D2_PT_JiggleBoneTools,
     L4D2_PT_FlexTools,
+    L4D2_PT_UtilityTools,
     L4D2_OT_RemoveConstraint,
     L4D2_OT_SelectBones,
     L4D2_MT_SelectBonesMenu,
@@ -436,8 +526,42 @@ classes = [
 
 
 def register():
+    # 临时禁止控制台输出
+    old_stdout = sys.stdout
+    sys.stdout = NullWriter()
+    
+    # 先注册其他模块，使用try-except抑制消息输出
+    try:
+        bone_modify.register()
+    except Exception as e:
+        pass
+    try:
+        vrd.register()
+    except Exception as e:
+        pass
+    try:
+        jigglebone.register()
+    except Exception as e:
+        pass
+    try:
+        flex.register()
+    except Exception as e:
+        pass
+    try:
+        weights.register()
+    except Exception as e:
+        pass
+    # bone_mapping.register()
+    
+    # 然后注册本模块的类
     for cls in classes:
-        bpy.utils.register_class(cls)
+        try:
+            bpy.utils.register_class(cls)
+        except Exception as e:
+            # 抑制重复注册的错误消息
+            pass
+
+    # 最后注册属性
     bpy.types.Scene.vertex_group_name_1 = bpy.props.StringProperty(name="Vertex Group 1")
     bpy.types.Scene.vertex_group_name_2 = bpy.props.StringProperty(name="Vertex Group 2")
     bpy.types.Object.select_pattern = bpy.props.StringProperty(default="*hair*")
@@ -446,11 +570,34 @@ def register():
         description="Bone Mapping Management",
         default=False
     )
-    bone_modify.register()
-    vrd.register()
-    jigglebone.register()
-    flex.register()
-    weights.register()
+    
+    # 确保骨骼映射所需的属性已注册 (由bone_modify模块处理)
+    if not hasattr(bpy.types.Scene, "mapping_ui_tab"):
+        bpy.types.Scene.mapping_ui_tab = bpy.props.EnumProperty(
+            name="映射显示",
+            description="选择要显示的映射类型",
+            items=[
+                ('ALL', "全部映射", "显示所有类型的映射关系"),
+                ('UNIQUE', "独立映射", "只显示独立于通用映射的自定义映射"),
+                ('COMMON', "通用映射", "只显示通用骨骼到自定义骨骼的映射"),
+                ('AXIS', "轴控制", "管理官方骨骼的轴向约束设置")
+            ],
+            default='ALL',
+            update=bone_modify.MappingDataManager.update_mapping_list
+        )
+    
+    if not hasattr(bpy.types.Scene, "active_preset_name"):
+        bpy.types.Scene.active_preset_name = bpy.props.StringProperty(
+            name="当前预设",
+            default="Valve_L4D2"
+        )
+    
+    if not hasattr(bpy.types.Scene, "use_search_mode"):
+        bpy.types.Scene.use_search_mode = bpy.props.BoolProperty(
+            name="搜索模式",
+            default=False
+        )
+    
     bpy.types.Scene.Valve_Armature = bpy.props.PointerProperty(
         name="Valve Armature",
         type=bpy.types.Object,
@@ -463,27 +610,82 @@ def register():
     )
 
     # 翻译
-    if bpy.app.version < (4, 0, 0):
-        lct_zh_CN.register()
-    else:
-        lct_zh_CN.register()
-        lct_zh_HANS.register()
+    try:
+        if bpy.app.version < (4, 0, 0):
+            lct_zh_CN.register()
+        else:
+            lct_zh_CN.register()
+            lct_zh_HANS.register()
+    except Exception as e:
+        pass
+        
+    # 恢复标准输出
+    sys.stdout = old_stdout
 
 def unregister():
+    # 先移除翻译
+    try:
+        if bpy.app.version < (4, 0, 0):
+            lct_zh_CN.unregister()
+        else:
+            lct_zh_CN.unregister()
+            lct_zh_HANS.unregister()
+    except:
+        pass
 
-    for cls in classes:
-        bpy.utils.unregister_class(cls)
-    del bpy.types.Scene.vertex_group_name_1
-    del bpy.types.Scene.vertex_group_name_2
-    del bpy.types.Object.select_pattern
-    bone_modify.unregister()
-    vrd.unregister()
-    flex.unregister()
-    weights.unregister()
-    jigglebone.unregister() 
-    # 翻译
-    if bpy.app.version < (4, 0, 0):
-        lct_zh_CN.unregister()
-    else:
-        lct_zh_CN.unregister()
-        lct_zh_HANS.unregister()
+    # 移除属性
+    try:
+        if hasattr(bpy.types.Scene, "vertex_group_name_1"):
+            del bpy.types.Scene.vertex_group_name_1
+        if hasattr(bpy.types.Scene, "vertex_group_name_2"):
+            del bpy.types.Scene.vertex_group_name_2
+        if hasattr(bpy.types.Object, "select_pattern"):
+            del bpy.types.Object.select_pattern
+        if hasattr(bpy.types.Scene, "bone_mapping_management"):
+            del bpy.types.Scene.bone_mapping_management
+            
+        # 移除骨骼映射相关属性（但这些属性通常由bone_modify模块管理）
+        if hasattr(bpy.types.Scene, "mapping_ui_tab"):
+            del bpy.types.Scene.mapping_ui_tab
+        if hasattr(bpy.types.Scene, "active_preset_name"):
+            del bpy.types.Scene.active_preset_name
+        if hasattr(bpy.types.Scene, "use_search_mode"):
+            del bpy.types.Scene.use_search_mode
+            
+        if hasattr(bpy.types.Scene, "Valve_Armature"):
+            del bpy.types.Scene.Valve_Armature
+        if hasattr(bpy.types.Scene, "Custom_Armature"):
+            del bpy.types.Scene.Custom_Armature
+    except:
+        pass
+
+    # 注销本模块的类
+    for cls in reversed(classes):
+        try:
+            if hasattr(cls, 'bl_rna'):
+                bpy.utils.unregister_class(cls)
+        except:
+            pass
+
+    # 最后注销其他模块
+    try:
+        bone_modify.unregister()
+    except:
+        pass
+    try:
+        vrd.unregister()
+    except:
+        pass
+    try:
+        flex.unregister()
+    except:
+        pass
+    try:
+        weights.unregister()
+    except:
+        pass
+    # bone_mapping.unregister()
+    try:
+        jigglebone.unregister()
+    except:
+        pass
