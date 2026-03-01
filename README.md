@@ -7,6 +7,8 @@
     <img src="https://img.shields.io/github/release/Saberafter/Blender_L4D2_Character_Tools">
 </div>
 
+*Read this in other languages: [English](README_EN.md), [简体中文](README.md).*
+
 ## 🚩 前言
 ⚠️本插件由AI语言模型ChatGPT辅助编写代码，基于个人模组制作中的工作流程和习惯开发，尽量考虑了通用性和可扩展性，但仍可能会有潜在的bug或兼容性问题。
 
